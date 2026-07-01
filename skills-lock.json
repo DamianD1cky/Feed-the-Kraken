@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "argue": {
+      "source": "onevcat/argue",
+      "sourceType": "github",
+      "skillPath": "skills/argue/SKILL.md",
+      "computedHash": "2450243cbbb6602a0ddc4ac408f8da1b30ae5c7c287f5b1de3da52c8397da952"
+    }
+  }
+}
