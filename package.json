@@ -1,0 +1,13 @@
+{
+  "name": "feed-the-kraken",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r --sort build",
+    "typecheck": "pnpm --filter @feed/shared build && pnpm --filter @feed/server typecheck && pnpm --filter @feed/client typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

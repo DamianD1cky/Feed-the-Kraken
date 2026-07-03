@@ -1,0 +1,10 @@
+node_modules
+.pnpm-store/
+
+dist/
+packages/*/dist/
+packages/server/data/
+
+.env
+.env.*
+.DS_Store

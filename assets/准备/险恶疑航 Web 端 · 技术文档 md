@@ -1,0 +1,976 @@
+# 险恶疑航 Web 端 · 技术执行规格
+> Charter № 001 · 2026.07  
+> Personal study project — not for distribution
+
+---
+
+## 0. 结论
+
+这个项目按 **4 周 v0.2 可玩闭环** 推进，不按完整线上产品推进。
+
+首版只解决 5–11 名熟人通过一个链接完成一整局的问题。系统必须做到：服务端权威、隐藏信息不泄露、断线可恢复、事件可追溯、单机可部署、出问题可排查。
+
+首版不解决：内置语音、PWA、完整复盘、观战、复杂动画、规则编辑器、复杂后台、多实例、Postgres、Redis、完整监控平台。
+
+---
+
+## 1. 项目边界
+
+| 项 | 值 |
+| --- | --- |
+| 项目性质 | 朋友局自用 / 非盈利 / 不公开运营 |
+| 目标用户 | 5–11 名已知好友 |
+| 部署地域 | 中国大陆全国 |
+| 首版周期 | 4 周内达到“可完整打一局” |
+| 首期预算 | 主机约 ¥66 / 月；含域名折算约 ¥70–75 / 月 |
+| 终端形态 | Web 响应式优先；PWA 后置 |
+| 仓库可见性 | Private |
+
+### 1.1 三条铁律
+
+1. **少运维**：能单机不拆服务，能 SQLite 不上 Postgres，能结构化日志解决就不先上重型监控。
+2. **先可玩**：核心游戏闭环先于语音、美术、PWA、复盘和动画。
+3. **零泄密**：客户端只接收当前玩家应该知道的 `PlayerView`，永不依赖前端隐藏秘密。
+
+### 1.2 首版必须包含
+
+- 创建房间、加入房间、座位管理、昵称设置、房主开始游戏。
+- `session token` 绑定玩家身份，`reconnect token` 支持断线恢复。
+- 重复连接、链接泄露、房主离线、房间超时、异常终止有明确策略。
+- 服务端分配身份与角色，客户端只显示当前玩家有权知道的信息。
+- 所有 `ClientAction` 经过协议版本校验、运行时 schema 校验、权限校验和幂等处理。
+- 船长选举、船长任命大副与领航员。
+- 信任投票只公布总枪数，不公布个人出枪数。
+- 目的地卡抽取、传递、选择、弃牌、航行结果。
+- 海图位置、阶段切换、胜负判定。
+- 事件日志同步落库，包含单房间递增 `seq`、事件 payload、触发动作标识。
+- 最小排障日志：房间号、玩家连接状态、事件 `seq`、错误码、非法动作原因。
+- 外部语音兜底提示：首版默认使用腾讯会议、Discord、微信语音等方式开局。
+
+### 1.3 首版明确后置
+
+- LiveKit 内置语音。
+- PWA / Service Worker。
+- 完整 Replay 页面、观战模式、复盘分享。
+- Atropos 卡牌动效、开屏视频、复杂入场动画、音效和背景音乐。
+- 规则编辑器、复杂后台、完整 admin 面板。
+- 多实例、Redis presence、Postgres、横向扩展。
+- Grafana / Loki 等完整监控平台。
+
+---
+
+## 2. 技术栈
+
+### 2.1 前端
+
+| 层级 | 选型 | 说明 |
+| --- | --- | --- |
+| 框架 | React 18 | 熟悉度高，生态成熟 |
+| 构建 | Vite 5 | 开发快，适合静态部署 |
+| 语言 | TypeScript 5 | 与服务端共享协议类型 |
+| 样式 | Tailwind CSS 3 | 快速落地响应式界面 |
+| 组件 | shadcn/ui | 复制式组件，无运行时锁定 |
+| 状态 | Zustand 4 | 只保存 `PlayerView`、连接状态、UI 临时状态和本地表单 |
+| 路由 | React Router 6 | `Lobby` / `Room`，`Replay` 后置 |
+| PWA | vite-plugin-pwa | v1.0 后再设计缓存策略 |
+| 卡片特效 | Atropos | v1.0 美化阶段再接入 |
+
+前端硬约束：
+
+- Zustand 不承载规则推导、隐藏信息或任何权威游戏状态。
+- `client/src` 不导入 `GameState`、`InternalPlayer` 或 server-only 类型。
+- 客户端不根据隐藏字段做 UI 分支；看不到就是不存在。
+- 客户端不得为了禁用按钮或展示提示而复制服务端规则推导；可操作性由 `PlayerView.privatePrompt` 或服务端拒绝结果决定。
+
+### 2.2 后端
+
+| 层级 | 选型 | 说明 |
+| --- | --- | --- |
+| 运行时 | Node.js 20 LTS | 与前端同语言 |
+| 语言 | TypeScript 5 | 规则、协议、视图类型统一 |
+| 实时通道 | Colyseus 0.15 | 只做房间、连接、重连、定向消息分发 |
+| Web 框架 | Express 4 | 健康检查、静态接口、后续 LiveKit token |
+| 持久化 | better-sqlite3 | 单文件、低运维、方便备份 |
+| 协议校验 | zod / valibot | 校验 `ClientAction`、`ServerMessage`、协议版本 |
+| 反向代理 | Caddy v2 | 自动 HTTPS，WebSocket 代理简单 |
+
+后端硬约束：
+
+- Colyseus Schema 不同步完整 `GameState`，更不能包含身份、手牌、牌堆、个人投票等敏感字段。
+- `server/engine` 只处理动作、事件、状态，不直接操作网络连接、数据库或 LiveKit。
+- `server/visibility` 是唯一能把内部状态转成 `PlayerView` 的地方。
+- `server/session` 是唯一签发和验证 `session token`、`reconnect token` 的地方。
+- TypeScript 类型只保护编译期，网络输入必须经过运行时 schema 校验。
+
+---
+
+## 3. 系统架构
+
+```text
+Browser (React)
+  │
+  │ HTTPS / WebSocket
+  ▼
+Caddy
+  ├─ /assets/* ───────────────▶ optimized runtime assets / optional CDN
+  ├─ /matchmake /room ────────▶ Colyseus + Express
+  └─ voice.example.fun ───────▶ LiveKit Server (v0.3+)
+
+Colyseus + Express
+  ├─ room lifecycle / connection / reconnect
+  ├─ authoritative game engine
+  ├─ per-player PlayerView projection
+  ├─ append-only event log
+  ├─ SQLite persistence
+  └─ LiveKit admin SDK (v0.3+)
+```
+
+### 3.1 设计原则
+
+- **服务端权威**：所有玩家动作先经过服务端校验，再写入事件日志，再由 reducer 推导状态。
+- **视图投射**：服务端为每个玩家生成 `PlayerView`，客户端永远拿不到完整 `GameState`。
+- **连接层隔离**：Colyseus 只负责房间生命周期、连接、重连和定向消息。
+- **协议显式**：`ClientAction`、`ServerMessage`、`PlayerView` 带协议版本，并进行运行时校验。
+- **会话可信**：玩家身份依赖 token，不依赖昵称、座位号或客户端自报状态。
+- **事件一致**：事件 append、`seq` 分配、内存 reduce、按玩家广播和失败处理必须顺序明确。
+- **语音解耦**：游戏状态机不等待 LiveKit；语音失败只影响沟通体验。
+- **单机优先**：首版只支持单 Node 进程，多实例和 Redis presence 不进入 v1.0。
+
+---
+
+## 4. 仓库结构
+
+```text
+feed-the-kraken/
+├── assets-source/
+│   ├── models/                 # 原始模型 zip / obj / glb，不进入运行时部署
+│   ├── video/                  # 原始视频，不进入 MVP 部署
+│   └── picture/                # 原始图片和可再加工素材
+├── packages/
+│   ├── shared/
+│   │   ├── src/
+│   │   │   ├── types.ts          # Role / Faction / Phase / Event / ProtocolVersion
+│   │   │   ├── rules.ts          # 人数配比、阈值、卡牌数据
+│   │   │   ├── protocol.ts       # ClientAction / ServerMessage / PlayerView
+│   │   │   ├── validators.ts     # zod / valibot 运行时校验
+│   │   │   └── fixtures.ts       # 测试用固定房间、玩家、牌堆
+│   │   └── package.json
+│   ├── server/
+│   │   ├── src/
+│   │   │   ├── rooms/
+│   │   │   │   └── KrakenRoom.ts
+│   │   │   ├── engine/
+│   │   │   │   ├── reducer.ts
+│   │   │   │   ├── actions.ts
+│   │   │   │   ├── setup.ts
+│   │   │   │   ├── phases/
+│   │   │   │   └── cards/
+│   │   │   ├── visibility/
+│   │   │   │   ├── projectView.ts
+│   │   │   │   └── projectView.test.ts
+│   │   │   ├── db/
+│   │   │   │   ├── sqlite.ts
+│   │   │   │   └── migrations.ts
+│   │   │   ├── session/
+│   │   │   │   ├── tokens.ts
+│   │   │   │   └── lifecycle.ts
+│   │   │   ├── observability/
+│   │   │   │   └── logger.ts
+│   │   │   ├── voice/
+│   │   │   │   ├── livekit.ts
+│   │   │   │   └── policy.ts
+│   │   │   └── index.ts
+│   │   └── package.json
+│   └── client/
+│       ├── public/
+│       │   └── assets/          # 运行时固定 URL 资源，必须是优化后产物
+│       ├── src/
+│       │   ├── assets/          # 组件 import 的小型资源，由 Vite hash 管理
+│       │   ├── scenes/
+│       │   │   ├── Lobby.tsx
+│       │   │   └── Room.tsx
+│       │   ├── components/
+│       │   │   ├── game/
+│       │   │   ├── voice/
+│       │   │   └── ui/
+│       │   ├── hooks/
+│       │   │   ├── useRoom.ts
+│       │   │   ├── usePlayerView.ts
+│       │   │   └── useVoice.ts
+│       │   └── main.tsx
+│       └── package.json
+├── deploy/
+│   ├── docker-compose.yml
+│   ├── Caddyfile
+│   └── livekit.yaml
+├── scripts/
+│   └── prepare-assets.ts        # 后置：把源素材压缩、转码、生成 manifest
+├── pnpm-workspace.yaml
+└── README.md
+```
+
+---
+
+## 5. 核心数据模型
+
+### 5.1 服务端内部状态
+
+内部状态只存在于服务端内存与事件重放结果中，不直接同步给客户端。
+
+```typescript
+type GameState = {
+  roomId: string;
+  phase: Phase;
+  players: Record<PlayerId, InternalPlayer>;
+  seats: PlayerId[];
+  ship: {
+    x: number;
+    y: number;
+    heading: "east" | "west" | "north";
+  };
+  offices: {
+    captainId?: PlayerId;
+    firstMateId?: PlayerId;
+    navigatorId?: PlayerId;
+  };
+  hands: {
+    destinationDeck: DestinationCard[];
+    captainHand: DestinationCard[];
+    firstMateHand: DestinationCard[];
+    navigatorChoice?: DestinationCard;
+    discardPile: DestinationCard[];
+  };
+  roundNo: number;
+  termRemaining: number;
+  winner?: Faction;
+};
+
+type InternalPlayer = {
+  id: PlayerId;
+  nickname: string;
+  connected: boolean;
+  faction: Faction;
+  role: Role;
+  guns: number;
+  muted: boolean;
+  dead: boolean;
+};
+```
+
+### 5.2 客户端视图
+
+同一时刻，不同玩家收到的 `PlayerView` 可以不同。
+
+```typescript
+type PlayerView = {
+  protocolVersion: number;
+  roomId: string;
+  viewerId: PlayerId;
+  phase: Phase;
+  me: VisibleSelf;
+  players: VisiblePlayer[];
+  ship: PublicShipState;
+  offices: PublicOffices;
+  publicLog: PublicLogEntry[];
+  privatePrompt?: PrivatePrompt;
+  hand?: VisibleHand;
+  winner?: Faction;
+};
+```
+
+### 5.3 协议消息
+
+```typescript
+const PROTOCOL_VERSION = 1;
+
+type ClientActionEnvelope = {
+  protocolVersion: number;
+  actionId: string;
+  roomId: string;
+  playerId: PlayerId;
+  action: ClientAction;
+  sentAt: number;
+};
+
+type ServerMessage =
+  | { type: "view.updated"; protocolVersion: number; view: PlayerView }
+  | { type: "action.rejected"; protocolVersion: number; actionId: string; code: string; reason: string }
+  | { type: "room.closed"; protocolVersion: number; reason: string };
+```
+
+协议规则：
+
+- 协议版本不兼容时，服务端拒绝连接或动作，并提示客户端刷新。
+- `actionId` 在单玩家单房间内幂等，重复提交不得重复生成事件。
+- `ServerMessage` 不直接发送 `GameState`、`InternalPlayer`、牌堆、个人投票明细或他人私密手牌。
+- 客户端不得根据本地规则推导权威状态，只能渲染最新 `PlayerView`。
+
+### 5.4 事件日志
+
+所有合法动作最终转成 `GameEvent`，追加到事件日志，再由 reducer 推导状态。
+
+```typescript
+type GameEvent =
+  | { type: "player.joined"; seq: number; playerId: PlayerId; nickname: string; at: number }
+  | { type: "session.reconnected"; seq: number; playerId: PlayerId; at: number }
+  | { type: "game.started"; seq: number; seed: string; setup: SetupSnapshot; at: number }
+  | { type: "captain.nominated"; seq: number; captainId: PlayerId; at: number }
+  | { type: "officers.assigned"; seq: number; firstMateId: PlayerId; navigatorId: PlayerId; at: number }
+  | { type: "vote.committed"; seq: number; playerId: PlayerId; guns: number; at: number }
+  | { type: "vote.resolved"; seq: number; totalGuns: number; passed: boolean; at: number }
+  | { type: "destination.drawn"; seq: number; cardIds: string[]; holderId: PlayerId; at: number }
+  | { type: "destination.chosen"; seq: number; cardId: string; by: PlayerId; at: number }
+  | { type: "ship.moved"; seq: number; cardId: string; to: { x: number; y: number }; at: number }
+  | { type: "room.closed"; seq: number; reason: "ended" | "abandoned" | "timeout"; at: number }
+  | { type: "game.ended"; seq: number; winner: Faction; reason: string; at: number };
+```
+
+事件规则：
+
+- `GameEvent` 可以包含完整秘密，但只保存在服务端与数据库。
+- `PublicLogEntry` 从 `GameEvent` 派生，不能泄露隐藏信息。
+- MVP 不做复杂 CQRS 或多读模型，但必须保证单房间 `seq` 单调递增。
+- 事件写入、内存 reduce、按玩家投射和广播顺序必须明确；失败时不得继续推进不可信状态。
+
+---
+
+## 6. 信息可见性
+
+### 6.1 可见性矩阵
+
+| 信息 | 可见对象 |
+| --- | --- |
+| 自己的阵营 | 自己 |
+| 海盗同伴身份 | 海盗之间互见 |
+| 邪教徒领袖身份 | 依规则，仅相关玩家可见 |
+| 未公开角色牌 | 仅自己 |
+| 已公开角色牌 | 全员 |
+| 玩家剩余火枪数 | 全员 |
+| 信任投票个人出枪数 | 永不下发，仅服务端聚合 |
+| 信任投票总枪数 | 全员 |
+| 船长 / 大副临时抽到的航行卡 | 当前持有人 |
+| 领航员弃入深海的牌 | 默认仅服务端；特殊卡牌触发后定向公开 |
+| 牌堆顺序 | 仅服务端 |
+| 邪教徒招募选择 | 仅规则允许的参与者 |
+
+### 6.2 工程纪律
+
+- 禁止把 `faction`、`role`、临时航行卡、牌堆、个人投票明细放入公共 Schema。
+- `projectView(state, viewerId)` 必须有表驱动测试，覆盖所有身份与关键阶段。
+- 每个新增字段先归类为 `public`、`private-to-self`、`private-to-group` 或 `server-only`。
+- CI 扫描禁止在 `client/src` 中出现 `InternalPlayer`、`GameState` 等内部类型引用。
+- 开发环境可以提供本地管理员调试视图，但必须和公网部署配置隔离，默认不开启。
+
+最小测试样例：
+
+```typescript
+it("does not reveal pirate identity to sailor", () => {
+  const state = fixtureGame({
+    players: [
+      { id: "sailor-1", faction: "sailor" },
+      { id: "player-2", faction: "pirate" },
+    ],
+  });
+  const view = projectView(state, "sailor-1");
+
+  expect(JSON.stringify(view)).not.toContain('"faction":"pirate"');
+  expect(view.players.find((p) => p.id === "player-2")?.faction).toBe("unknown");
+});
+```
+
+---
+
+## 7. 动作处理流
+
+```text
+ClientActionEnvelope
+  │
+  ▼
+validateProtocolVersion(envelope)
+  │
+  ▼
+parseClientAction(envelope)
+  │
+  ▼
+checkIdempotency(roomId, playerId, actionId)
+  │
+  ▼
+validateAction(state, actorId, action)
+  │
+  ▼
+toGameEvents(state, actorId, action)
+  │
+  ▼
+append events with seq in one transaction
+  │
+  ▼
+reduce(state, event)
+  │
+  ▼
+projectView(state, eachPlayerId)
+```
+
+失败处理：
+
+- 协议版本不兼容：拒绝连接或动作，提示刷新。
+- schema 校验失败：返回 `action.rejected`，记录错误码，不生成事件。
+- 权限或阶段不匹配：返回 `action.rejected`，不生成事件。
+- 重复 `actionId`：返回已有处理结果或忽略重复动作，不重复追加事件。
+- 事件写入失败：不广播新视图；房间进入可排查错误状态或显式终止。
+
+### 7.1 Phase 模块约定
+
+```typescript
+export type PhaseHandler = {
+  enter(state: GameState): GameEvent[];
+  handleAction(state: GameState, actorId: PlayerId, action: ClientAction): GameEvent[];
+  leave(state: GameState): GameEvent[];
+};
+```
+
+阶段模块不直接发送 WebSocket 消息，不直接写数据库，不直接调用 LiveKit。它只返回事件。
+
+### 7.2 随机性
+
+- 每局开始生成 `seed`，洗牌与身份分配都使用可复现 PRNG。
+- `game.started` 事件记录 `seed` 与必要的 setup 摘要。
+- 测试可固定 seed，复现完整对局。
+
+---
+
+## 8. 会话与房间生命周期
+
+### 8.1 Token 策略
+
+- 创建或加入房间时，服务端生成 `playerId`、`session token`、`reconnect token`。
+- `session token` 用于当前连接身份确认。
+- `reconnect token` 用于断线后恢复同一玩家视图。
+- 数据库只保存 token hash，不保存明文 token。
+- 昵称、座位号、客户端缓存都不能作为身份凭据。
+
+### 8.2 重复连接
+
+- 同一玩家新连接通过 token 校验后，可以替换旧连接。
+- 旧连接被标记为 stale，不再接受动作。
+- 如果两个连接同时提交同一 `actionId`，幂等逻辑保证只处理一次。
+
+### 8.3 房主权限
+
+- 房主可以开始游戏、关闭 lobby、踢出未开始前的异常连接。
+- 游戏开始后，房主不拥有规则特权。
+- 房主离线不阻塞正在进行的游戏；必要时可按座位顺序转移房主权限。
+
+### 8.4 房间终止
+
+| 状态 | 含义 |
+| --- | --- |
+| `lobby` | 等待玩家加入和准备 |
+| `playing` | 对局进行中 |
+| `ended` | 正常结束 |
+| `abandoned` | 进程重启、状态恢复失败或严重错误后终止 |
+| `timeout` | 长时间无连接或无人操作后清理 |
+
+异常终止必须写入 `room.closed` 事件或房间状态，不能让前端继续进入不可信对局。
+
+---
+
+## 9. SQLite 持久化
+
+SQLite 只负责房间记录、会话记录、结束对局、事件日志和轻量配置。不在 v1.0 前做复杂用户系统。
+
+```sql
+CREATE TABLE rooms (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL,
+  host_player_id TEXT,
+  created_at INTEGER NOT NULL,
+  started_at INTEGER,
+  ended_at INTEGER,
+  closed_reason TEXT
+);
+
+CREATE TABLE room_sessions (
+  room_id TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  session_token_hash TEXT NOT NULL,
+  reconnect_token_hash TEXT NOT NULL,
+  nickname TEXT NOT NULL,
+  seat_no INTEGER,
+  connected INTEGER NOT NULL DEFAULT 0,
+  last_seen_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (room_id, player_id)
+);
+
+CREATE TABLE matches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  started_at INTEGER,
+  ended_at INTEGER,
+  winner TEXT,
+  player_count INTEGER NOT NULL,
+  seed TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE match_players (
+  match_id INTEGER NOT NULL REFERENCES matches(id),
+  player_id TEXT NOT NULL,
+  nickname TEXT NOT NULL,
+  faction TEXT,
+  role TEXT,
+  survived INTEGER,
+  PRIMARY KEY (match_id, player_id)
+);
+
+CREATE TABLE match_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  match_id INTEGER NOT NULL REFERENCES matches(id),
+  seq INTEGER NOT NULL,
+  action_id TEXT,
+  player_id TEXT,
+  type TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE (match_id, seq),
+  UNIQUE (match_id, player_id, action_id)
+);
+
+CREATE INDEX idx_rooms_status ON rooms(status);
+CREATE INDEX idx_room_sessions_room ON room_sessions(room_id);
+CREATE INDEX idx_matches_started ON matches(started_at DESC);
+CREATE INDEX idx_match_events_match_seq ON match_events(match_id, seq);
+```
+
+持久化策略：
+
+- 进行中的房间默认以内存为准，事件同步写 SQLite。
+- 事件写入与 `seq` 分配必须在同一事务内完成。
+- 同一玩家同一 `action_id` 重复提交时，不能重复追加事件。
+- Node 进程重启后，可以根据 `match_events` 尝试恢复未结束房间；恢复失败则标记 `abandoned`。
+- MVP 不追求完整崩溃恢复，但必须保证单进程运行期间日志、内存状态和广播不会分叉。
+- SQLite 文件放在独立数据卷，至少保留最近 7 天每日备份。
+- schema migration 必须可重复执行。
+
+---
+
+## 10. 前端体验
+
+### 10.1 页面
+
+| 页面 | 作用 |
+| --- | --- |
+| `Lobby` | 创建房间、加入房间、昵称、设备检查、外部语音提示 |
+| `Room` | 船桌主视角、中央海图、玩家轮盘、阶段提示、当前动作 |
+| `Replay` | 后置；结束后公开事件回放 |
+
+### 10.2 Room 主界面原则
+
+`Room` 模拟“所有玩家围着一张航海桌”的感觉：中央是海图和船，周围是玩家席位，所有玩家共享同一个南方起点主视角。
+
+- 棋盘方向固定：南侧是船的起始点，北是克拉肯，东是水手胜利区域，西是海盗胜利区域。
+- 玩家轮盘按顺时针顺序固定，用来表达船长轮换、醉酒换船长、下班状态和叛变胜出者。
+- 中央海图占桌面端主要视觉面积，目标 60–75%。
+- 主屏文字只做阶段提示和必要确认，长规则说明放在可展开帮助中。
+- 关键按钮固定在移动端底部操作区。
+- 阶段提示必须回答：“现在等谁操作”“你能做什么”“别人能看到什么”。
+
+### 10.3 公共桌面信息
+
+每个玩家席位可以展示：
+
+- 昵称、在线状态、麦克风状态、延迟状态。
+- 公开枪数。
+- 船长 / 大副 / 领航员徽章。
+- 下班牌。
+- 已公开角色卡。
+- 航行简历卡。
+- 船舱搜查、割舌、鞭笞、喂食克拉肯等公开状态标记。
+
+隐藏阵营、未公开角色卡、临时看到的航行卡只出现在对应玩家的私密浮层中，不常驻在公共棋盘上。
+
+### 10.4 后置体验项
+
+Atropos、开屏视频、复杂音效、背景音乐、完整 Replay 都不进入 4 周 MVP。后续接入时仍必须遵守：
+
+- 动效不能承担隐藏信息遮罩。
+- 关键动作不能依赖动效完成。
+- `prefers-reduced-motion: reduce` 时关闭复杂动效。
+- 开屏视频不进入 Service Worker 预缓存。
+
+---
+
+## 11. 资源管理
+
+当前仓库里的 `static/` 包含图片、视频和模型压缩包，体量约 570MB。它不能被视为可直接部署的运行时静态目录。首版必须先区分源素材、运行时资源和后置体验资源。
+
+### 11.1 资源目录职责
+
+| 目录 | 职责 | 是否进入 MVP 部署 |
+| --- | --- | --- |
+| `assets-source/models/` | 原始模型、zip、obj、glb、制作素材 | 否 |
+| `assets-source/video/` | 原始视频、长视频、待剪辑素材 | 否 |
+| `assets-source/picture/` | 原始图片、未压缩大图、可再加工素材 | 否 |
+| `packages/client/public/assets/` | 运行时需要固定 URL 的优化后资源 | 是，限量 |
+| `packages/client/src/assets/` | 组件 import 的小型 UI 资源，由 Vite hash 管理 | 是，限量 |
+| CDN / 对象存储 | 后置的大体积可选资源、v1.0 美化资源 | 后置 |
+
+`static/` 这个目录名不作为长期规范。迁移后应删除或只作为临时中转目录，不能同时保留 `static/`、`picture/`、`video/`、`models/` 多个同源目录。
+
+### 11.2 资源分类规则
+
+- 模型 zip、原始 obj/glb、制作工程文件：归入 `assets-source/models/`，不进入 Docker 镜像，不由 Caddy 直接服务。
+- 原始视频、长视频：归入 `assets-source/video/`，不进入 MVP；v1.0 只使用转码后的短视频。
+- 卡面、港口图、海图、图标：先压缩和命名规范化，再进入 `packages/client/public/assets/` 或 `packages/client/src/assets/`。
+- 组件强绑定的小图标、小纹理：放 `packages/client/src/assets/`，通过 import 引入，让 Vite 生成 hash。
+- 需要按 URL 动态引用的卡牌、棋盘、公开图片：放 `packages/client/public/assets/`，通过资源 manifest 引用。
+- 大体积可选资源：后置到 CDN / 对象存储，不进入首版 bundle 和首版 Docker 镜像。
+
+### 11.3 命名与 manifest
+
+所有运行时资源必须通过 manifest 引用，不在组件中散写路径。
+
+```typescript
+type AssetManifest = {
+  cards: Record<string, { front: string; back?: string; width: number; height: number }>;
+  board: Record<string, { src: string; width: number; height: number }>;
+  video?: Record<string, { src: string; poster?: string; durationSec: number }>;
+};
+```
+
+规则：
+
+- 文件名使用小写英文、数字和连字符，例如 `item-knife.webp`、`cult-card-back.webp`。
+- 不把中文文件名、时间戳生成名、`mira_*` 临时名放入运行时资源目录。
+- manifest 可以由脚本生成，也可以首版手写，但必须成为 UI 使用资源的唯一入口。
+- manifest 不包含隐藏信息权限；资源是否下发和展示仍由 `PlayerView` 决定。
+
+### 11.4 首版资源预算
+
+- 首屏资源 `< 1MB`。
+- 进入房间增量资源 `<= 1.5MB`。
+- 游戏开始后本局卡面和公开图增量 `<= 1MB`。
+- 单张卡面目标 `< 80KB`，优先 WebP / AVIF。
+- MVP 禁止部署模型 zip、原始视频、未压缩大图。
+
+---
+
+## 12. 语音与 PWA
+
+### 12.1 语音
+
+首版默认外部语音。LiveKit 是 v0.3+ 体验增强项，不是核心规则引擎依赖。
+
+LiveKit 后续接入原则：
+
+- 服务端确认玩家身份与房间权限后再发 token。
+- 阶段切换时异步应用麦克风策略。
+- LiveKit 操作失败只记录日志和提示降级，不阻塞游戏。
+- 如果 4M 带宽出现瓶颈，优先保外部语音兜底，不为了内置语音升级架构。
+
+### 12.2 PWA
+
+PWA 放到 v1.0 后打磨，原因是实时游戏最怕缓存旧协议。
+
+- `index.html` 不使用长期缓存。
+- `/assets/*` 只服务优化后的运行时资源，使用 hash 文件名和 immutable 缓存。
+- Service Worker 只缓存经过 manifest 标记的静态资源，不缓存 WebSocket、房间接口、LiveKit token、开屏视频、模型 zip、原始视频。
+- 协议变更后强制刷新旧客户端。
+
+---
+
+## 13. 资源与性能预算
+
+### 13.1 网络目标
+
+| 链路 | 目标 P95 | 容忍上限 |
+| --- | --- | --- |
+| 游戏状态 RTT | < 150ms | 300ms |
+| 语音 RTT | < 150ms | 250ms |
+| 首屏 LCP | < 2s | 3s |
+| 断线重连 | < 10s | 60s |
+
+### 13.2 首版资源预算
+
+| 阶段 | 增量 | 内容 |
+| --- | --- | --- |
+| 首屏 | < 1 MB | React、基础 UI、大厅，不含原始视频 |
+| 进入房间 | <= 1.5 MB | 海图、座位、基础卡面，均为优化后图片 |
+| 游戏开始 | <= 1 MB | 本局角色与目的地资源，通过 manifest 按需加载 |
+| v1.0 美化 | + 2–4 MB | 音效、动画、背景、短 intro，不进 MVP |
+
+### 13.3 优化原则
+
+- 图片使用 WebP / AVIF，单张卡面目标 < 80KB。
+- 路由与重资源组件懒加载。
+- 进入房间后预取本局可能使用的卡牌资源。
+- CDN 只服务静态资源，不代理 WebSocket。
+- 源素材不参与前端构建；运行时资源不得引用 `assets-source/`。
+- 性能预算聚焦单房间低延迟、移动端首屏、消息广播频率、弱网重连，不为公开大规模并发提前设计横向扩展。
+
+---
+
+## 14. 部署
+
+### 14.1 成本
+
+| 项 | 方案 | 月成本 |
+| --- | --- | --- |
+| 主机 | 阿里云轻量 上海 2C4G 4M BGP | ¥66 |
+| CDN | 七牛云免费档或直接 Caddy 静态 | ¥0 |
+| HTTPS | Caddy + Let's Encrypt | ¥0 |
+| 域名 | `.fun` 等低价后缀 | 约 ¥5，按年付 |
+| 监控 | 结构化日志 + 健康检查页 | ¥0 |
+| 合计 | 首期不含域名约 ¥66 / 月 | 含域名折算约 ¥70–75 / 月 |
+
+### 14.2 docker-compose
+
+```yaml
+version: "3.9"
+
+services:
+  game:
+    build: ../packages/server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_PATH: /data/kraken.sqlite
+      LIVEKIT_HOST: http://livekit:7880
+      LIVEKIT_KEY: ${LIVEKIT_KEY:-}
+      LIVEKIT_SECRET: ${LIVEKIT_SECRET:-}
+    volumes:
+      - ./data:/data
+    expose:
+      - "2567"
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    command: --config /livekit.yaml
+    volumes:
+      - ./livekit.yaml:/livekit.yaml:ro
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50100:50000-50100/udp"
+    profiles:
+      - voice
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./client-dist:/srv/client:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - game
+
+volumes:
+  caddy_data:
+  caddy_config:
+```
+
+### 14.3 Caddyfile
+
+```caddyfile
+kraken.example.fun {
+  encode zstd gzip
+
+  @ws {
+    path /matchmake* /room*
+  }
+  reverse_proxy @ws game:2567
+
+  @api {
+    path /api/*
+  }
+  reverse_proxy @api game:2567
+
+  @assets {
+    path /assets/*
+  }
+  header @assets Cache-Control "public, max-age=31536000, immutable"
+
+  root * /srv/client
+  try_files {path} /index.html
+  file_server
+}
+
+voice.kraken.example.fun {
+  reverse_proxy livekit:7880
+}
+```
+
+如果暂时不启用内置语音，可以先不配置 `voice.kraken.example.fun`，并用 `docker compose up -d` 启动核心游戏。
+
+### 14.4 部署步骤
+
+以下步骤用于 MVP 早期试跑。v1.0 前应逐步转向本地或 CI 构建前端静态产物与后端镜像，服务器只负责拉取产物、挂载 SQLite 数据卷和启动服务。
+
+部署约束：
+
+- Docker 镜像和 `deploy/client-dist` 不得包含 `assets-source/`。
+- Caddy 只服务前端构建产物和 `packages/client/public/assets/` 中的优化后运行时资源。
+- 原始模型、原始视频和未压缩大图不得上传到首版服务器。
+
+```bash
+ssh root@<host>
+apt update
+apt install -y docker.io docker-compose-plugin
+sysctl -w net.ipv4.tcp_congestion_control=bbr
+
+git clone <private-repo-url>
+cd feed-the-kraken
+pnpm install
+pnpm --filter client build
+
+mkdir -p deploy/client-dist
+cp -r packages/client/dist/* deploy/client-dist/
+
+cd deploy
+cp .env.example .env
+docker compose up -d
+curl https://kraken.example.fun/api/health
+```
+
+---
+
+## 15. 可观测性
+
+首版不自建 Grafana / Loki，但必须能定位真实朋友局问题。
+
+必须记录：
+
+- 服务端结构化 JSON 日志。
+- `/api/health` 返回进程、数据库、房间数量、版本号、协议版本。
+- 每局结束记录总时长、玩家数、断线次数、是否异常结束。
+- 每个拒绝动作记录房间号、玩家、阶段、错误码、`actionId`，不记录其他玩家隐藏信息。
+- 每次事件落库记录 `roomId`、`matchId`、`seq`、`type`、耗时和失败原因。
+- 每次断线重连记录玩家、旧连接、新连接、token 校验结果和恢复视图版本。
+
+关键指标：
+
+| 类别 | 指标 |
+| --- | --- |
+| 房间 | 当前房间数、玩家数、平均局时 |
+| 网络 | 重连次数、消息处理耗时、客户端 RTT |
+| 规则 | 非法动作次数、阶段卡死次数 |
+| 事件 | 事件落库失败、seq 断裂、重复 action |
+| 错误 | 未捕获异常、房间异常终止 |
+
+---
+
+## 16. 测试策略
+
+### 16.1 单元测试
+
+- `rules.ts`：人数配比、阈值、牌表合法性。
+- `validators.ts`：协议版本、`ClientActionEnvelope`、`ServerMessage`、非法 payload。
+- `reducer.ts`：每种事件对状态的影响。
+- `actions.ts`：非法动作拒绝，合法动作生成正确事件。
+- `projectView.ts`：所有隐藏信息不可见。
+- `session/tokens.ts`：token 签发、校验、过期、错误 token 拒绝。
+
+### 16.2 集成测试
+
+- 5、7、9、11 人完整模拟对局。
+- 断线重连后视图一致。
+- 重复 `actionId` 不重复生成事件。
+- 事件日志重放后得到同样胜负和公开流水。
+- 协议版本不兼容时明确拒绝并提示刷新。
+- 投票阶段不泄露个人出枪。
+- 航行阶段只让相关玩家看到临时航行卡。
+
+### 16.3 手工验收
+
+每个版本至少完成一次朋友局或本地多人浏览器测试：
+
+- Chrome 桌面。
+- Android Chrome。
+- iOS Safari。
+- 微信内置浏览器是否明确提示兼容性。
+- 至少一次 5 人以上真实朋友局，记录断线、非法动作、事件落库失败和用户卡住阶段。
+
+---
+
+## 17. 四周路线
+
+| 版本 | 周期 | 内容 | 验收标准 |
+| --- | --- | --- | --- |
+| week 1 / v0.0 | 1 周 | 威胁模型、协议版本、运行时 schema、规则数据、reducer 原型、`PlayerView` 泄密测试 | 固定 seed 可模拟核心流程；非法 payload 被拒绝；客户端拿不到隐藏信息 |
+| week 2 / v0.1 | 1 周 | 房间、座位、加入、`session token`、`reconnect token`、重复连接、房主权限 | 多浏览器看到不同私有视图；断线重连恢复当前玩家视图 |
+| week 3 / v0.2-engine | 1 周 | 选举、投票、航行、胜负、事件事务落库、幂等和广播顺序 | 不用内置语音也能完整打一局；重复动作不重复落库 |
+| week 4 / v0.2-playable | 1 周 | 移动端/桌面 UI、资源 manifest、Docker/Caddy、SQLite 数据卷和备份说明、真实多人测试 | 5 人以上真实局完成；泄密、重连、事件日志、资源预算和排障日志验收通过 |
+| v0.3 | 后置 | LiveKit token、阶段静音、语音降级 | 核心规则稳定后，5–11 人语音压测通过 |
+| v0.4 | 后置 | 行动卡、岛屿事件、邪教徒、克拉肯 | 规则覆盖度接近完整 |
+| v1.0 | 持续 | UI 美化、音效、PWA、公开复盘、部署产物化 | 朋友局稳定使用；协议缓存策略稳定 |
+
+---
+
+## 18. 风险登记
+
+| 风险 | 概率 | 影响 | 缓解 |
+| --- | --- | --- | --- |
+| 客户端拿到隐藏身份或临时航行卡 | 中 | 致命 | 服务端视图投射 + 表驱动测试 + 禁止内部类型进入前端 |
+| Colyseus Schema 误承载权威状态 | 中 | 致命 | Colyseus 只做连接层，客户端只接收定向 `PlayerView` |
+| 旧客户端或非法消息破坏状态 | 中 | 严重 | 协议版本 + 运行时 schema 校验 + 明确拒绝策略 |
+| 房间链接泄露或冒名顶替 | 中 | 严重 | `session token`、`reconnect token`、房主权限、重复连接策略 |
+| 事件日志与内存状态分叉 | 中 | 严重 | `seq` 事务写入、幂等 `actionId`、失败不广播 |
+| 僵尸房间和未完成对局堆积 | 中 | 中 | 房间生命周期、超时清理、崩溃后标记 `abandoned` |
+| MVP 范围过大导致迟迟不能开局 | 高 | 严重 | v0.2 只保核心闭环，语音和 PWA 后置 |
+| 源素材混入运行时部署导致构建和加载失控 | 高 | 中 | `assets-source/` 不部署；运行时资源必须优化后进入 `public/assets` 或 `src/assets` |
+| 资源路径散落导致后续迁移成本高 | 中 | 中 | 所有运行时资源通过 manifest 引用，组件不散写路径 |
+| LiveKit 同机部署带宽或端口问题 | 中 | 严重 | 外部语音兜底，v0.3 单独压测 |
+| Node 进程重启导致进行中房间丢失 | 中 | 中 | 事件日志同步落库，失败时明确标记 `abandoned` |
+| SQLite 文件损坏或升级迁移失败 | 低 | 严重 | 数据卷、每日备份、可重复 migration、日志保留 |
+| 移动端浏览器麦克风/音频策略不一致 | 中 | 中 | 设备检查页 + 兼容性提示 |
+| 版权投诉或误解为公开发行 | 低 | 极严重 | 私库、自用、不收费、不公开传播、不复用官方素材 |
+
+---
+
+## 19. 版权与边界
+
+| 项 | 约束 |
+| --- | --- |
+| 仓库 | Private |
+| 使用范围 | 熟人朋友局，不开放注册，不收费 |
+| 名称 | 不用官方名称做公开宣传或 SEO |
+| 美术 | 不直接复用官方插图、卡面、Logo |
+| README | 标注 `Personal study project, not for distribution` |
+
+以上只能降低风险，不能构成法律保证。若未来准备公开运营、收费、传播安装包或做社区服务，应先联系权利方授权，或改成原创主题与机制表达。
+
+---
+
+## 20. v0.2 交付清单
+
+- [ ] `pnpm workspace` 跑通。
+- [ ] `shared/rules.ts` 收录人数配比、核心阈值和 typed config。
+- [ ] 协议版本、`ClientActionEnvelope`、`ServerMessage` 运行时 schema 完成。
+- [ ] `GameEvent` / `ClientAction` / `PlayerView` 类型稳定。
+- [ ] `session token`、`reconnect token`、房主权限、重复连接策略完成。
+- [ ] reducer 可用固定 seed 模拟完整核心对局。
+- [ ] `projectView` 覆盖主要隐藏信息测试。
+- [ ] 房间创建、加入、座位、重连可用。
+- [ ] 选举、投票、航行、胜负判定可用。
+- [ ] 事件日志具备 `seq`、事务写入、幂等 `actionId` 和基础重放。
+- [ ] SQLite 数据卷、备份、migration 和房间异常终止策略写入部署说明。
+- [ ] 源素材迁入 `assets-source/`，模型 zip、原始视频、未压缩大图不进入部署产物。
+- [ ] 运行时图片进入 `packages/client/public/assets/` 或 `packages/client/src/assets/`，并满足资源预算。
+- [ ] `AssetManifest` 完成，UI 通过 manifest 引用卡面、棋盘和公开图片。
+- [ ] Colyseus 不同步完整 `GameState`，客户端只接收定向 `PlayerView`。
+- [ ] Zustand store 不承载规则推导、隐藏信息或权威状态。
+- [ ] 最小排障日志包含房间号、玩家连接状态、事件 `seq`、错误码。
+- [ ] 外部语音兜底提示完成。
+- [ ] 至少一次 5 人以上测试局完成。
+
+---
+
+*Rewritten in Shanghai · July, 2026*
