@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r --sort build",
+    "test": "pnpm --filter @feed/server test",
     "typecheck": "pnpm --filter @feed/shared build && pnpm --filter @feed/server typecheck && pnpm --filter @feed/client typecheck"
   },
   "devDependencies": {

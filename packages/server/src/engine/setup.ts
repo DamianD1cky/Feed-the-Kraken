@@ -41,26 +41,51 @@ export function createLobbyPlayer(id: PlayerId, nickname: string): InternalPlaye
   };
 }
 
-export function assignHiddenRoles(state: GameState) {
+export function assignHiddenRoles(state: GameState, seed: string) {
   const seats = [...state.seats];
-  const factions: Faction[] = seats.map((_, index) => {
-    if (index === 0) return "pirate";
-    if (index === seats.length - 1) return "cult";
-    return "sailor";
-  });
-  const roles: Role[] = seats.map((_, index) => {
-    if (index === 0) return "pirate";
-    if (index === seats.length - 1) return "cultist";
-    return "sailor";
-  });
+  const assignments = shuffle(
+    seats.map((_, index) => {
+      if (index === 0) return { faction: "pirate" as Faction, role: "pirate" as Role };
+      if (index === seats.length - 1) return { faction: "cult" as Faction, role: "cultist" as Role };
+      return { faction: "sailor" as Faction, role: "sailor" as Role };
+    }),
+    seed,
+  );
 
   for (let index = 0; index < seats.length; index += 1) {
     const player = state.players[seats[index]];
-    if (!player) continue;
-    player.faction = factions[index];
-    player.role = roles[index];
+    const assignment = assignments[index];
+    if (!player || !assignment) continue;
+    player.faction = assignment.faction;
+    player.role = assignment.role;
     player.guns = INITIAL_GUNS;
   }
+}
+
+function shuffle<T>(items: T[], seed: string) {
+  const result = [...items];
+  const random = createSeededRandom(seed);
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+  return result;
+}
+
+function createSeededRandom(seed: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return () => {
+    hash += 0x6d2b79f5;
+    let value = hash;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 export function drawDestinationCards(state: GameState, count: number): DestinationCard[] {

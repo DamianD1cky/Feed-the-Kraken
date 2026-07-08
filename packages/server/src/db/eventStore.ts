@@ -36,7 +36,7 @@ export function createEventStore(databasePath = process.env.DATABASE_PATH ?? "./
       CREATE INDEX IF NOT EXISTS idx_match_events_room_seq ON match_events(room_id, seq);
     `);
     const insert = db.prepare(`
-      INSERT OR IGNORE INTO match_events (room_id, seq, action_id, player_id, type, payload, created_at)
+      INSERT INTO match_events (room_id, seq, action_id, player_id, type, payload, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     return {

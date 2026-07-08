@@ -110,9 +110,10 @@ export class KrakenRoom extends Room {
   }
 
   private resolveReconnect(options: JoinOptions) {
-    if (!options.playerId || !options.reconnectToken) return undefined;
+    if (!options.playerId || !options.sessionToken || !options.reconnectToken) return undefined;
     const session = this.sessions.get(options.playerId);
     if (!session) return undefined;
+    if (!verifyToken(options.sessionToken, session.sessionTokenHash)) return undefined;
     if (!verifyToken(options.reconnectToken, session.reconnectTokenHash)) return undefined;
     if (!this.game.players[options.playerId]) return undefined;
     return options.playerId;
@@ -147,7 +148,13 @@ export class KrakenRoom extends Room {
       return;
     }
     const actionKey = `${envelope.playerId}:${envelope.actionId}`;
-    if (this.processedActions.has(actionKey)) {
+    const previous = this.processedActions.get(actionKey);
+    if (previous) {
+      if (previous.result === "rejected") {
+        this.reject(client, previous.actionId, previous.code ?? "action_rejected", previous.reason ?? "动作被拒绝。");
+        return;
+      }
+      this.sendView(client);
       return;
     }
 
@@ -172,9 +179,10 @@ export class KrakenRoom extends Room {
         if (this.game.seats.length < MIN_PLAYERS) {
           throw new Error(`至少需要 ${MIN_PLAYERS} 名玩家才能开始。`);
         }
-        assignHiddenRoles(this.game);
+        const seed = randomUUID();
+        assignHiddenRoles(this.game, seed);
         this.game.hands.destinationDeck = [...DESTINATION_CARDS];
-        this.appendAndApply({ type: "game.started", seed: randomUUID() }, envelope);
+        this.appendAndApply({ type: "game.started", seed }, envelope);
         return;
       }
       case "assignOfficers": {
@@ -240,14 +248,18 @@ export class KrakenRoom extends Room {
 
   private broadcastViews() {
     for (const client of this.clients) {
-      const playerId = this.clientToPlayer.get(client.sessionId);
-      if (!playerId) continue;
-      client.send("view.updated", {
-        type: "view.updated",
-        protocolVersion: PROTOCOL_VERSION,
-        view: projectView(this.game, playerId, this.events),
-      });
+      this.sendView(client);
     }
+  }
+
+  private sendView(client: Client) {
+    const playerId = this.clientToPlayer.get(client.sessionId);
+    if (!playerId) return;
+    client.send("view.updated", {
+      type: "view.updated",
+      protocolVersion: PROTOCOL_VERSION,
+      view: projectView(this.game, playerId, this.events),
+    });
   }
 
   private reject(client: Client, actionId: string | undefined, code: string, reason: string) {
