@@ -1,28 +1,45 @@
 import {
-  DESTINATION_CARDS,
+  buildFactionPool,
+  createCultRitualDeck,
+  createMapActions,
+  createVoyageDeck,
+  defaultVoyageMode,
   INITIAL_GUNS,
-  type DestinationCard,
+  RESHUFFLE_DECK_THRESHOLD,
+  shuffle,
   type Faction,
   type GameState,
   type InternalPlayer,
   type PlayerId,
   type Role,
+  type VoyageMode,
 } from "@feed/shared";
 
 export function createLobbyState(roomId: string): GameState {
   return {
     roomId,
     phase: "lobby",
+    voyageMode: "quick",
+    supplyLineCrossed: false,
     players: {},
     seats: [],
     ship: { x: 0, y: 0, heading: "north" },
     offices: {},
+    offDuty: [],
+    mapActions: createMapActions("quick"),
     hands: {
-      destinationDeck: [...DESTINATION_CARDS],
-      navigatorHand: [],
+      deck: [],
+      captainHand: [],
+      mateHand: [],
+      journal: [],
       discardPile: [],
+      resumePile: [],
     },
     votes: {},
+    mutinyTieCandidates: [],
+    cultRitualDeck: [],
+    pendingCultRitual: false,
+    emergencyVoyage: false,
     roundNo: 0,
     termRemaining: 0,
   };
@@ -38,60 +55,109 @@ export function createLobbyPlayer(id: PlayerId, nickname: string): InternalPlaye
     guns: INITIAL_GUNS,
     muted: false,
     dead: false,
+    conversionImmune: false,
+    notFactions: [],
+    resumeCount: 0,
   };
 }
 
 export function assignHiddenRoles(state: GameState, seed: string) {
+  const pool = buildFactionPool(state.seats.length, seed);
   const seats = [...state.seats];
-  const assignments = shuffle(
-    seats.map((_, index) => {
-      if (index === 0) return { faction: "pirate" as Faction, role: "pirate" as Role };
-      if (index === seats.length - 1) return { faction: "cult" as Faction, role: "cultist" as Role };
-      return { faction: "sailor" as Faction, role: "sailor" as Role };
-    }),
-    seed,
-  );
-
   for (let index = 0; index < seats.length; index += 1) {
-    const player = state.players[seats[index]];
-    const assignment = assignments[index];
-    if (!player || !assignment) continue;
-    player.faction = assignment.faction;
-    player.role = assignment.role;
+    const player = state.players[seats[index]!];
+    const faction = pool[index] ?? "sailor";
+    if (!player) continue;
+    player.faction = faction;
+    player.role = roleForFaction(faction, seed, seats[index]!);
     player.guns = INITIAL_GUNS;
+    player.dead = false;
+    player.muted = false;
+    player.conversionImmune = false;
+    player.notFactions = [];
+    player.resumeCount = 0;
+  }
+
+  // 11 人局：恰好一名 cultist，其余 cult 为领袖
+  if (state.seats.length === 11) {
+    const cultSeats = state.seats.filter((id) => state.players[id]?.faction === "cult");
+    if (cultSeats.length >= 2) {
+      const ordered = shuffle(cultSeats, `${seed}:cult-roles`);
+      for (const [index, id] of ordered.entries()) {
+        const player = state.players[id];
+        if (player) player.role = index === 0 ? "cult_leader" : "cultist";
+      }
+    }
+  } else {
+    for (const id of state.seats) {
+      const player = state.players[id];
+      if (player?.faction === "cult") player.role = "cult_leader";
+    }
   }
 }
 
-function shuffle<T>(items: T[], seed: string) {
-  const result = [...items];
-  const random = createSeededRandom(seed);
-  for (let index = result.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(random() * (index + 1));
-    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
-  }
-  return result;
+function roleForFaction(faction: Faction, _seed: string, _playerId: PlayerId): Role {
+  if (faction === "pirate") return "pirate";
+  if (faction === "cult") return "cult_leader";
+  return "sailor";
 }
 
-function createSeededRandom(seed: string) {
-  let hash = 2166136261;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash ^= seed.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return () => {
-    hash += 0x6d2b79f5;
-    let value = hash;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
+export function pickCaptain(seats: PlayerId[], seed: string): PlayerId {
+  if (seats.length === 0) throw new Error("Cannot pick captain without seats");
+  return shuffle([...seats], `${seed}:captain`)[0]!;
 }
 
-export function drawDestinationCards(state: GameState, count: number): DestinationCard[] {
-  if (state.hands.destinationDeck.length < count) {
-    state.hands.destinationDeck = [...state.hands.destinationDeck, ...state.hands.discardPile];
+export function buildShuffledDeck(seed: string, mode: VoyageMode = "quick") {
+  return shuffle(createVoyageDeck(mode), `${seed}:deck`);
+}
+
+export function resolveVoyageMode(playerCount: number): VoyageMode {
+  return defaultVoyageMode(playerCount);
+}
+
+export function buildCultRituals(seed: string) {
+  return createCultRitualDeck(seed);
+}
+
+export function peekDeckCardIds(state: GameState, count: number): string[] {
+  const deck =
+    state.hands.deck.length < RESHUFFLE_DECK_THRESHOLD && state.hands.discardPile.length > 0
+      ? [...state.hands.deck, ...state.hands.discardPile]
+      : state.hands.deck;
+  return deck.slice(0, count).map((card) => card.id);
+}
+
+export function ensureDeckHasCards(state: GameState, count: number) {
+  if (
+    (state.hands.deck.length < RESHUFFLE_DECK_THRESHOLD && state.hands.discardPile.length > 0) ||
+    state.hands.deck.length < count
+  ) {
+    // 与 peekDeckCardIds 使用相同拼接顺序，保证预览 ID 与抽取一致。
+    state.hands.deck = [...state.hands.deck, ...state.hands.discardPile];
     state.hands.discardPile = [];
   }
-  return state.hands.destinationDeck.splice(0, count);
+}
+
+export function appointablePlayerIds(state: GameState, captainId: PlayerId): PlayerId[] {
+  const candidates = state.seats.filter((playerId) => {
+    const player = state.players[playerId];
+    return player && !player.dead && playerId !== captainId;
+  });
+  const withoutOffDuty = candidates.filter((playerId) => !state.offDuty.includes(playerId));
+  return withoutOffDuty.length >= 2 ? withoutOffDuty : candidates;
+}
+
+export function alivePlayerIds(state: GameState): PlayerId[] {
+  return state.seats.filter((id) => state.players[id] && !state.players[id]!.dead);
+}
+
+export function cultLeaderId(state: GameState): PlayerId | undefined {
+  return state.seats.find((id) => state.players[id]?.role === "cult_leader" && !state.players[id]?.dead);
+}
+
+export function convertiblePlayerIds(state: GameState): PlayerId[] {
+  return alivePlayerIds(state).filter((id) => {
+    const player = state.players[id]!;
+    return player.faction !== "cult" && !player.conversionImmune;
+  });
 }

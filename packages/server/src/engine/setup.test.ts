@@ -4,28 +4,28 @@ import type { Faction, GameState } from "@feed/shared";
 import { assignHiddenRoles, createLobbyPlayer, createLobbyState } from "./setup.js";
 
 test("assignHiddenRoles is reproducible for the same seed", () => {
-  const first = createState();
-  const second = createState();
+  const first = createState(6);
+  const second = createState(6);
 
   assignHiddenRoles(first, "fixed-seed");
   assignHiddenRoles(second, "fixed-seed");
 
   assert.deepEqual(factions(first), factions(second));
-  assert.deepEqual(countFactions(first), { cult: 1, pirate: 1, sailor: 3 });
+  assert.deepEqual(countFactions(first), { cult: 1, pirate: 2, sailor: 3 });
 });
 
-test("assignHiddenRoles does not bind hidden factions to join order", () => {
-  const state = createState();
-
-  assignHiddenRoles(state, "known-non-order-seed");
-
-  assert.notEqual(state.players["player-1"]?.faction, "pirate");
-  assert.notEqual(state.players["player-5"]?.faction, "cult");
+test("assignHiddenRoles five-player pool always includes cult and four others", () => {
+  const state = createState(5);
+  assignHiddenRoles(state, "five-seed");
+  const counts = countFactions(state);
+  assert.equal(counts.cult, 1);
+  assert.equal(counts.sailor + counts.pirate, 4);
+  assert.ok(counts.pirate >= 1 && counts.pirate <= 2);
 });
 
-function createState() {
+function createState(count: number) {
   const state = createLobbyState("room-1");
-  for (let index = 1; index <= 5; index += 1) {
+  for (let index = 1; index <= count; index += 1) {
     const playerId = `player-${index}`;
     state.players[playerId] = createLobbyPlayer(playerId, `玩家 ${index}`);
     state.seats.push(playerId);

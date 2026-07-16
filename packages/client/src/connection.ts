@@ -49,9 +49,7 @@ function attachRoom(room: Room) {
 
   room.onMessage("session.established", (message: StoredSession) => {
     store.setSession(message);
-    if (!message.sessionToken.includes("hidden") && !message.reconnectToken.includes("hidden")) {
-      localStorage.setItem(storageKey(message.roomId), JSON.stringify(message));
-    }
+    writeStoredSession(message);
   });
   room.onMessage("view.updated", (message: Extract<ServerMessage, { type: "view.updated" }>) => {
     useAppStore.getState().setView(message.view);
@@ -71,11 +69,22 @@ function storageKey(roomId: string) {
   return `${STORAGE_KEY}:${roomId}`;
 }
 
+/** Per-tab storage so multiple windows in one browser can join as different players. */
+function writeStoredSession(message: StoredSession) {
+  const payload = JSON.stringify(message);
+  sessionStorage.setItem(storageKey(message.roomId), payload);
+  // Clear legacy shared storage that caused multi-tab identity collisions.
+  localStorage.removeItem(storageKey(message.roomId));
+}
+
 function readStoredSession(roomId: string) {
-  const raw = localStorage.getItem(storageKey(roomId));
+  const key = storageKey(roomId);
+  const raw = sessionStorage.getItem(key) ?? localStorage.getItem(key);
   if (!raw) return {};
   try {
     const session = JSON.parse(raw) as StoredSession;
+    if (!session.playerId || !session.sessionToken || !session.reconnectToken) return {};
+    if (session.sessionToken.includes("hidden") || session.reconnectToken.includes("hidden")) return {};
     return {
       playerId: session.playerId,
       sessionToken: session.sessionToken,
