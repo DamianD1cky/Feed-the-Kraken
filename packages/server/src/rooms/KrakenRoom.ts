@@ -61,6 +61,7 @@ export class KrakenRoom extends Room {
     this.game = createLobbyState(this.roomId);
     this.setState(new EmptyRoomState());
     this.onMessage("action", (client, payload) => this.handleAction(client, payload));
+    this.onMessage("resync", (client) => this.handleResync(client));
   }
 
   onJoin(client: Client, options: JoinOptions) {
@@ -68,10 +69,23 @@ export class KrakenRoom extends Room {
     if (reconnectPlayerId) {
       this.clientToPlayer.set(client.sessionId, reconnectPlayerId);
       this.appendAndApply({ type: "session.reconnected", playerId: reconnectPlayerId });
-      this.issueSession(client, reconnectPlayerId);
-      this.broadcastViews();
+      // 重连不轮换 token：客户端若漏收 session.established，轮换会导致永久无法再连。
+      this.sendView(client);
       return;
     }
+
+    const triedReconnect = Boolean(options.playerId || options.sessionToken || options.reconnectToken);
+    if (triedReconnect) {
+      client.send("action.rejected", {
+        type: "action.rejected",
+        protocolVersion: PROTOCOL_VERSION,
+        code: "reconnect_failed",
+        reason: "重连失败：会话已失效或房间不匹配。请确认房间号，或在本标签页原先使用的窗口恢复。",
+      });
+      client.leave();
+      return;
+    }
+
     if (this.game.phase !== "lobby") {
       client.send("action.rejected", {
         type: "action.rejected",
@@ -113,6 +127,20 @@ export class KrakenRoom extends Room {
     if (!verifyToken(options.reconnectToken, session.reconnectTokenHash)) return undefined;
     if (!this.game.players[options.playerId]) return undefined;
     return options.playerId;
+  }
+
+  private handleResync(client: Client) {
+    const playerId = this.clientToPlayer.get(client.sessionId);
+    if (!playerId) {
+      client.send("action.rejected", {
+        type: "action.rejected",
+        protocolVersion: PROTOCOL_VERSION,
+        code: "invalid_session",
+        reason: "当前连接未绑定玩家，请重新加入或恢复身份。",
+      });
+      return;
+    }
+    this.sendView(client);
   }
 
   private issueSession(client: Client, playerId: PlayerId) {

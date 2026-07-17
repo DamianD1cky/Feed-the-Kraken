@@ -17,14 +17,35 @@ export async function createGameRoom(nickname: string) {
   const client = new Client(endpoint());
   const room = await client.create("kraken", { nickname });
   attachRoom(room);
+  requestResync(room);
   return room;
 }
 
 export async function joinGameRoom(roomId: string, nickname: string, mode: "new-player" | "reconnect" = "new-player") {
   const client = new Client(endpoint());
-  const stored = mode === "reconnect" ? readStoredSession(roomId) : {};
-  const room = await client.joinById(roomId, { nickname, ...stored });
+  const trimmedRoomId = roomId.trim();
+
+  if (mode === "reconnect") {
+    const stored = readFullStoredSession(trimmedRoomId);
+    if (!stored?.playerId || !stored.sessionToken || !stored.reconnectToken) {
+      throw new Error("本标签页没有该房间的可恢复会话。请用原先进入游戏的标签页点「恢复上次身份」，或作为新玩家加入（仅大厅阶段）。");
+    }
+    const room = await client.joinById(trimmedRoomId, {
+      nickname,
+      playerId: stored.playerId,
+      sessionToken: stored.sessionToken,
+      reconnectToken: stored.reconnectToken,
+    });
+    attachRoom(room);
+    // 重连不再下发 session.established，需从本地恢复，否则无法发动作。
+    useAppStore.getState().setSession(stored);
+    requestResync(room);
+    return room;
+  }
+
+  const room = await client.joinById(trimmedRoomId, { nickname });
   attachRoom(room);
+  requestResync(room);
   return room;
 }
 
@@ -42,6 +63,15 @@ export function sendAction(action: ClientAction) {
   room.send("action", envelope);
 }
 
+function requestResync(room: Room) {
+  // join 完成前服务端可能已推送 view；监听器挂上后补拉一次，避免卡在大厅。
+  try {
+    room.send("resync");
+  } catch {
+    // room may already be closing
+  }
+}
+
 function attachRoom(room: Room) {
   const store = useAppStore.getState();
   store.setRoom(room);
@@ -53,6 +83,7 @@ function attachRoom(room: Room) {
   });
   room.onMessage("view.updated", (message: Extract<ServerMessage, { type: "view.updated" }>) => {
     useAppStore.getState().setView(message.view);
+    useAppStore.getState().setError(undefined);
   });
   room.onMessage("action.rejected", (message: Extract<ServerMessage, { type: "action.rejected" }>) => {
     useAppStore.getState().setError(message.reason);
@@ -61,7 +92,13 @@ function attachRoom(room: Room) {
     useAppStore.getState().setError(`房间已关闭：${message.reason}`);
   });
   room.onLeave((code) => {
-    useAppStore.getState().setError(`连接已断开：${code}`);
+    const current = useAppStore.getState();
+    // 若已有视图且只是短暂断开，保留视图并提示；完全未进房则只显示错误
+    if (!current.view) {
+      current.setError(`连接已断开：${code}。若正在恢复身份，请确认房间号与会话仍有效。`);
+    } else {
+      current.setError(`连接已断开：${code}。可返回大厅用「恢复上次身份」重连。`);
+    }
   });
 }
 
@@ -73,24 +110,20 @@ function storageKey(roomId: string) {
 function writeStoredSession(message: StoredSession) {
   const payload = JSON.stringify(message);
   sessionStorage.setItem(storageKey(message.roomId), payload);
-  // Clear legacy shared storage that caused multi-tab identity collisions.
   localStorage.removeItem(storageKey(message.roomId));
 }
 
-function readStoredSession(roomId: string) {
+function readFullStoredSession(roomId: string): StoredSession | undefined {
   const key = storageKey(roomId);
   const raw = sessionStorage.getItem(key) ?? localStorage.getItem(key);
-  if (!raw) return {};
+  if (!raw) return undefined;
   try {
     const session = JSON.parse(raw) as StoredSession;
-    if (!session.playerId || !session.sessionToken || !session.reconnectToken) return {};
-    if (session.sessionToken.includes("hidden") || session.reconnectToken.includes("hidden")) return {};
-    return {
-      playerId: session.playerId,
-      sessionToken: session.sessionToken,
-      reconnectToken: session.reconnectToken,
-    };
+    if (!session.playerId || !session.sessionToken || !session.reconnectToken) return undefined;
+    if (session.sessionToken.includes("hidden") || session.reconnectToken.includes("hidden")) return undefined;
+    if (session.roomId && session.roomId !== roomId) return undefined;
+    return session;
   } catch {
-    return {};
+    return undefined;
   }
 }
