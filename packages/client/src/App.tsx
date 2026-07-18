@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { PlayerId, PlayerView } from "@feed/shared";
 import { createGameRoom, joinGameRoom, sendAction } from "./connection";
+import { HexMap } from "./HexMap";
 import { useAppStore } from "./store";
 import "./styles.css";
 
@@ -74,13 +75,7 @@ function RoomView({ view }: { view: PlayerView }) {
             <span>补给线：<strong>{view.supplyLineCrossed ? "已越过" : "未越过"}</strong></span>
           ) : null}
         </div>
-        <div className="map">
-          <div className="ship" style={{ transform: `translate(${view.ship.x * 52}px, ${-view.ship.y * 52}px)` }}>⛵</div>
-          <span className="goal north">克拉肯</span>
-          <span className="goal east">水手</span>
-          <span className="goal west">海盗</span>
-          <span className="goal south">起点</span>
-        </div>
+        <HexMap x={view.ship.x} y={view.ship.y} voyageMode={view.voyageMode} />
         <PlayerRing view={view} />
       </div>
       <aside className="side-column">

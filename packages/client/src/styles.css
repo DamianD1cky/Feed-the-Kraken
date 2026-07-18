@@ -43,25 +43,43 @@ input, select {
 .lobby-grid div { display: grid; gap: 12px; }
 .room-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
 .room-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; color: #b6c2cf; }
-.map {
-  position: relative;
-  min-height: 360px;
+.hex-map {
   display: grid;
-  place-items: center;
-  overflow: hidden;
+  gap: 10px;
+  justify-items: center;
+  padding: 12px 8px 4px;
   border-radius: 24px;
-  background:
-    linear-gradient(rgba(139,211,255,.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(139,211,255,.12) 1px, transparent 1px),
-    radial-gradient(circle at center, #143755, #081827 70%);
-  background-size: 52px 52px, 52px 52px, auto;
+  background: radial-gradient(circle at 50% 40%, #1a2836, #0a121c 75%);
 }
-.ship { position: relative; z-index: 2; font-size: 44px; transition: transform .25s ease; }
-.goal { position: absolute; color: #d8ecff; opacity: .75; font-weight: 700; }
-.north { top: 18px; }
-.south { bottom: 18px; }
-.east { right: 18px; }
-.west { left: 18px; }
+.hex-map-svg {
+  width: min(100%, 420px);
+  height: auto;
+  overflow: visible;
+  shape-rendering: geometricPrecision;
+}
+.hex-ship {
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.45));
+}
+.hex-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  justify-content: center;
+  color: #c7d4e2;
+  font-size: 13px;
+}
+.hex-map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.hex-map-legend .swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(94, 196, 200, .7);
+}
+.hex-map-legend .swatch.cult { background: #f4b301; }
+.hex-map-legend .swatch.pirate { background: #f73301; }
+.hex-map-legend .swatch.sailor { background: #72b8f4; }
 .players { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 18px; }
 .player-card { border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 12px; background: rgba(0,0,0,.18); }
 .player-card.current { border-color: #8bd3ff; }
@@ -78,5 +96,5 @@ input, select {
 @media (max-width: 880px) {
   .app-shell { padding: 16px; }
   .lobby-grid, .room-layout { grid-template-columns: 1fr; }
-  .map { min-height: 280px; }
+  .hex-map-svg { width: min(100%, 340px); }
 }
