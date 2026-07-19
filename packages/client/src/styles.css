@@ -77,9 +77,6 @@ input, select {
   border-radius: 3px;
   border: 1px solid rgba(94, 196, 200, .7);
 }
-.hex-map-legend .swatch.cult { background: #f4b301; }
-.hex-map-legend .swatch.pirate { background: #f73301; }
-.hex-map-legend .swatch.sailor { background: #72b8f4; }
 .players { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 18px; }
 .player-card { border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 12px; background: rgba(0,0,0,.18); }
 .player-card.current { border-color: #8bd3ff; }

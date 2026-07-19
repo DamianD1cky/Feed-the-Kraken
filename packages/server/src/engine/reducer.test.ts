@@ -43,6 +43,69 @@ test("mutiny failure proceeds to navigation deal phase; success can change capta
   assert.equal(state.players[others[0]!]?.guns, 0); // spent 3
 });
 
+test("mutiny tie-break authority passes to each eliminated candidate", () => {
+  const state = createLobbyState("room-mutiny-tie");
+  for (const event of joinEvents(5)) reduceGameEvent(state, event);
+  reduceGameEvent(state, { type: "game.started", seq: 6, seed: "tie-seed", at: 6 });
+
+  const captainId = state.offices.captainId!;
+  const others = state.seats.filter((id) => id !== captainId);
+  const [alpha, beta, gamma, bystander] = others;
+  reduceGameEvent(state, {
+    type: "officers.assigned",
+    seq: 7,
+    firstMateId: alpha!,
+    navigatorId: beta!,
+    at: 7,
+  });
+  state.votes = {
+    [alpha!]: 3,
+    [beta!]: 3,
+    [gamma!]: 3,
+    [bystander!]: 0,
+  };
+
+  reduceGameEvent(state, {
+    type: "mutiny.resolved",
+    seq: 8,
+    totalGuns: 9,
+    success: true,
+    candidates: [alpha!, beta!, gamma!],
+    at: 8,
+  });
+  assert.equal(state.phase, "mutiny_tiebreak");
+  assert.equal(state.mutinyEliminatorId, captainId);
+
+  reduceGameEvent(state, {
+    type: "mutiny.tie_eliminated",
+    seq: 9,
+    playerId: alpha!,
+    at: 9,
+  });
+  assert.deepEqual(state.mutinyTieCandidates, [beta, gamma]);
+  assert.equal(state.mutinyEliminatorId, alpha);
+
+  reduceGameEvent(state, {
+    type: "mutiny.tie_eliminated",
+    seq: 10,
+    playerId: gamma!,
+    at: 10,
+  });
+  assert.deepEqual(state.mutinyTieCandidates, [beta]);
+  assert.equal(state.mutinyEliminatorId, undefined);
+
+  reduceGameEvent(state, {
+    type: "mutiny.captain_changed",
+    seq: 11,
+    captainId: beta!,
+    at: 11,
+  });
+  assert.equal(state.offices.captainId, beta);
+  assert.equal(state.players[alpha!]?.guns, 0);
+  assert.equal(state.players[beta!]?.guns, 0);
+  assert.equal(state.players[gamma!]?.guns, 0);
+});
+
 test("navigation keep chain and off-duty for 5 players uses quick deck", () => {
   const state = createLobbyState("room-nav");
   for (const event of joinEvents(5)) reduceGameEvent(state, event);

@@ -61,6 +61,7 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
       state.offDuty = [];
       state.votes = {};
       state.mutinyTieCandidates = [];
+      state.mutinyEliminatorId = undefined;
       state.pendingCultRitual = false;
       state.emergencyVoyage = false;
       state.phase = "officers";
@@ -76,6 +77,7 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
       state.phase = "mutiny";
       state.votes = {};
       state.mutinyTieCandidates = [];
+      state.mutinyEliminatorId = undefined;
       return;
     }
     case "mutiny.committed": {
@@ -85,15 +87,24 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
     case "mutiny.resolved": {
       if (!event.success) {
         state.votes = {};
+        state.mutinyTieCandidates = [];
+        state.mutinyEliminatorId = undefined;
         state.phase = "captain_nav";
         return;
       }
       state.mutinyTieCandidates = event.candidates ?? [];
-      if ((event.candidates?.length ?? 0) > 1) state.phase = "mutiny_tiebreak";
+      if ((event.candidates?.length ?? 0) > 1) {
+        state.mutinyEliminatorId = state.offices.captainId;
+        state.phase = "mutiny_tiebreak";
+      } else {
+        state.mutinyEliminatorId = undefined;
+      }
       return;
     }
     case "mutiny.tie_eliminated": {
       state.mutinyTieCandidates = state.mutinyTieCandidates.filter((id) => id !== event.playerId);
+      state.mutinyEliminatorId =
+        state.mutinyTieCandidates.length > 1 ? event.playerId : undefined;
       return;
     }
     case "mutiny.captain_changed": {
@@ -103,6 +114,7 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
       }
       state.votes = {};
       state.mutinyTieCandidates = [];
+      state.mutinyEliminatorId = undefined;
       state.offices = { captainId: event.captainId };
       state.phase = "officers";
       return;

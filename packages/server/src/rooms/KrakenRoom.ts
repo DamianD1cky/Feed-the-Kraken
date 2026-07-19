@@ -17,6 +17,7 @@ import {
   type GameState,
   type PlayerId,
 } from "@feed/shared";
+import { gameDebugLog } from "../debug.js";
 import { createEventStore, type EventStore } from "../db/eventStore.js";
 import { mapActionAt, nextDrunkCaptainId, reduceGameEvent, resolveOffDutyPlayerIds } from "../engine/reducer.js";
 import {
@@ -27,7 +28,14 @@ import {
   cultLeaderId,
   peekDeckCardIds,
 } from "../engine/setup.js";
-import { createToken, hashToken, verifyToken, type SessionRecord } from "../session/tokens.js";
+import {
+  createSessionExpiry,
+  createToken,
+  hashToken,
+  isSessionExpired,
+  verifyToken,
+  type SessionRecord,
+} from "../session/tokens.js";
 import { projectView } from "../visibility/projectView.js";
 
 type JoinOptions = {
@@ -44,6 +52,15 @@ type ProcessedAction = {
   reason?: string;
 };
 
+const DEFAULT_ROOM_IDLE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function roomIdleTtlMs() {
+  const configured = Number(process.env.ROOM_IDLE_TTL_MS);
+  return Number.isFinite(configured) && configured > 0
+    ? configured
+    : DEFAULT_ROOM_IDLE_TTL_MS;
+}
+
 class EmptyRoomState extends Schema {}
 type PendingGameEvent = GameEvent extends infer E ? (E extends GameEvent ? Omit<E, "seq" | "at"> : never) : never;
 
@@ -54,21 +71,29 @@ export class KrakenRoom extends Room {
   private readonly sessions = new Map<PlayerId, SessionRecord>();
   private readonly clientToPlayer = new Map<string, PlayerId>();
   private readonly processedActions = new Map<string, ProcessedAction>();
+  /** 同一客户端动作可产生多个领域事件，仅首个事件携带幂等键入库。 */
+  private readonly persistedActionKeys = new Set<string>();
+  private idleDisposalTimer?: ReturnType<typeof setTimeout>;
   private eventStore: EventStore = createEventStore();
 
   onCreate() {
     this.maxClients = MAX_PLAYERS;
+    // 游客关闭页面后仍可凭持久令牌回来；空房超过 TTL 后再释放。
+    this.autoDispose = false;
     this.game = createLobbyState(this.roomId);
     this.setState(new EmptyRoomState());
     this.onMessage("action", (client, payload) => this.handleAction(client, payload));
     this.onMessage("resync", (client) => this.handleResync(client));
+    this.debug("room.created", { maxClients: this.maxClients });
   }
 
   onJoin(client: Client, options: JoinOptions) {
     const reconnectPlayerId = this.resolveReconnect(options);
     if (reconnectPlayerId) {
+      this.cancelIdleDisposal();
       this.clientToPlayer.set(client.sessionId, reconnectPlayerId);
       this.appendAndApply({ type: "session.reconnected", playerId: reconnectPlayerId });
+      this.debug("player.reconnected", { playerId: reconnectPlayerId });
       // 重连不轮换 token：客户端若漏收 session.established，轮换会导致永久无法再连。
       this.sendView(client);
       return;
@@ -80,7 +105,7 @@ export class KrakenRoom extends Room {
         type: "action.rejected",
         protocolVersion: PROTOCOL_VERSION,
         code: "reconnect_failed",
-        reason: "重连失败：会话已失效或房间不匹配。请确认房间号，或在本标签页原先使用的窗口恢复。",
+        reason: "重连失败：本浏览器保存的身份已失效，或房间已过期。请确认房间号。",
       });
       client.leave();
       return;
@@ -98,8 +123,10 @@ export class KrakenRoom extends Room {
     }
     const nickname = normalizeNickname(options.nickname);
     const playerId = randomUUID();
+    this.cancelIdleDisposal();
     this.clientToPlayer.set(client.sessionId, playerId);
     this.appendAndApply({ type: "player.joined", playerId, nickname });
+    this.debug("player.joined", { playerId, nickname });
     this.issueSession(client, playerId);
     this.broadcastViews();
   }
@@ -109,20 +136,28 @@ export class KrakenRoom extends Room {
     if (!playerId) return;
     this.clientToPlayer.delete(client.sessionId);
     this.appendAndApply({ type: "session.disconnected", playerId });
-    if (this.game.phase === "mutiny" && this.game.votes[playerId] === undefined) {
-      const captainId = this.game.offices.captainId;
-      if (playerId !== captainId && !this.game.players[playerId]?.dead) {
-        this.appendAndApply({ type: "mutiny.committed", playerId, guns: 0 });
-        this.maybeResolveMutiny();
-      }
-    }
+    this.debug("player.disconnected", { playerId, phase: this.game.phase });
+    if (this.game.phase === "mutiny") this.maybeResolveMutiny();
     this.broadcastViews();
+    const hasRemainingClient = this.clients.some(
+      (connectedClient) => connectedClient.sessionId !== client.sessionId,
+    );
+    if (!hasRemainingClient) this.scheduleIdleDisposal();
+  }
+
+  onDispose() {
+    this.cancelIdleDisposal();
   }
 
   private resolveReconnect(options: JoinOptions) {
     if (!options.playerId || !options.sessionToken || !options.reconnectToken) return undefined;
     const session = this.sessions.get(options.playerId);
     if (!session) return undefined;
+    if (isSessionExpired(session)) {
+      this.sessions.delete(options.playerId);
+      this.debug("session.expired", { playerId: options.playerId, expiresAt: session.expiresAt });
+      return undefined;
+    }
     if (!verifyToken(options.sessionToken, session.sessionTokenHash)) return undefined;
     if (!verifyToken(options.reconnectToken, session.reconnectTokenHash)) return undefined;
     if (!this.game.players[options.playerId]) return undefined;
@@ -140,16 +175,20 @@ export class KrakenRoom extends Room {
       });
       return;
     }
-    this.sendView(client);
+    // 重同步同时执行一次阶段一致性检查，可恢复“票已齐但结算事件未写入”的中断状态。
+    if (this.game.phase === "mutiny") this.maybeResolveMutiny();
+    this.broadcastViews();
   }
 
   private issueSession(client: Client, playerId: PlayerId) {
     const sessionToken = createToken();
     const reconnectToken = createToken();
+    const expiresAt = createSessionExpiry();
     this.sessions.set(playerId, {
       playerId,
       sessionTokenHash: hashToken(sessionToken),
       reconnectTokenHash: hashToken(reconnectToken),
+      expiresAt,
     });
     client.send("session.established", {
       type: "session.established",
@@ -158,6 +197,7 @@ export class KrakenRoom extends Room {
       playerId,
       sessionToken,
       reconnectToken,
+      expiresAt,
     });
   }
 
@@ -177,6 +217,12 @@ export class KrakenRoom extends Room {
       this.reject(client, envelope.actionId, "wrong_room", "动作房间与当前房间不匹配。");
       return;
     }
+    this.debug("action.received", {
+      actionId: envelope.actionId,
+      actionType: envelope.action.type,
+      actorId,
+      phase: this.game.phase,
+    });
     const actionKey = `${envelope.playerId}:${envelope.actionId}`;
     const previous = this.processedActions.get(actionKey);
     if (previous) {
@@ -190,6 +236,12 @@ export class KrakenRoom extends Room {
     try {
       this.applyAction(envelope);
       this.processedActions.set(actionKey, { actionId: envelope.actionId, result: "accepted" });
+      this.debug("action.accepted", {
+        actionId: envelope.actionId,
+        actionType: envelope.action.type,
+        actorId,
+        phase: this.game.phase,
+      });
       this.broadcastViews();
     } catch (error) {
       const reason = error instanceof Error ? error.message : "动作被拒绝。";
@@ -197,6 +249,13 @@ export class KrakenRoom extends Room {
         actionId: envelope.actionId,
         result: "rejected",
         code: "action_rejected",
+        reason,
+      });
+      this.debug("action.rejected", {
+        actionId: envelope.actionId,
+        actionType: envelope.action.type,
+        actorId,
+        phase: this.game.phase,
         reason,
       });
       this.reject(client, envelope.actionId, "action_rejected", reason);
@@ -226,6 +285,9 @@ export class KrakenRoom extends Room {
         this.appendAndApply({ type: "officers.assigned", firstMateId, navigatorId }, envelope);
         if (this.game.emergencyVoyage) {
           // should not happen; emergency skips mutiny
+        } else {
+          // 玩家可能在进入哗变前已经离线；立即补 0 枪，避免阶段永久等待。
+          this.maybeResolveMutiny(envelope);
         }
         return;
       }
@@ -241,7 +303,9 @@ export class KrakenRoom extends Room {
       }
       case "eliminateTieCandidate": {
         this.requirePhase("mutiny_tiebreak");
-        if (actorId !== this.game.offices.captainId) throw new Error("只有现任船长可以剔除平手者。");
+        if (actorId !== this.game.mutinyEliminatorId) {
+          throw new Error("现在不是你剔除平手候选人的回合。");
+        }
         if (!this.game.mutinyTieCandidates.includes(action.playerId)) throw new Error("该玩家不在平手名单中。");
         this.appendAndApply({ type: "mutiny.tie_eliminated", playerId: action.playerId }, envelope);
         if (this.game.mutinyTieCandidates.length === 1) {
@@ -536,10 +600,37 @@ export class KrakenRoom extends Room {
     if (this.game.phase !== "mutiny") return;
     const captainId = this.game.offices.captainId;
     const voters = alivePlayerIds(this.game).filter((id) => id !== captainId);
-    if (!voters.every((id) => this.game.votes[id] !== undefined)) return;
+
+    const disconnectedPending = voters.filter(
+      (id) =>
+        this.game.votes[id] === undefined &&
+        !this.game.players[id]?.connected,
+    );
+    for (const playerId of disconnectedPending) {
+      this.appendAndApply({ type: "mutiny.committed", playerId, guns: 0 });
+    }
+
+    const pending = voters.filter((id) => this.game.votes[id] === undefined);
+    this.debug("mutiny.check", {
+      captainId,
+      threshold: mutinyThreshold(this.game.seats.length),
+      voters: voters.map((id) => ({
+        playerId: id,
+        nickname: this.game.players[id]?.nickname,
+        connected: this.game.players[id]?.connected,
+        gunsCommitted: this.game.votes[id],
+      })),
+      autoCommittedDisconnected: disconnectedPending,
+      pending,
+    });
+    if (pending.length > 0) {
+      this.debug("mutiny.waiting", { pending });
+      return;
+    }
 
     const totalGuns = voters.reduce((sum, id) => sum + (this.game.votes[id] ?? 0), 0);
-    const success = totalGuns >= mutinyThreshold(this.game.seats.length);
+    const threshold = mutinyThreshold(this.game.seats.length);
+    const success = totalGuns >= threshold;
 
     // 割舌玩家亮枪计入总数，但不可成为船长；竞选时其枪数视为 0
     const eligible = voters.filter((id) => !this.game.players[id]?.muted);
@@ -547,6 +638,12 @@ export class KrakenRoom extends Room {
     const max = Math.max(...scored.map((entry) => entry.guns), 0);
     let candidates = scored.filter((entry) => entry.guns === max).map((entry) => entry.id);
     if (candidates.length === 0) candidates = eligible;
+    this.debug("mutiny.resolving", {
+      totalGuns,
+      threshold,
+      success,
+      candidates,
+    });
 
     this.appendAndApply(
       { type: "mutiny.resolved", totalGuns, success, candidates: success ? candidates : undefined },
@@ -583,10 +680,26 @@ export class KrakenRoom extends Room {
 
   private appendAndApply(event: PendingGameEvent, envelope?: ClientActionEnvelope) {
     const fullEvent = { ...event, seq: this.nextSeq, at: Date.now() } as GameEvent;
+    const actionKey = envelope ? `${envelope.playerId}:${envelope.actionId}` : undefined;
+    const persistActionKey = Boolean(actionKey && !this.persistedActionKeys.has(actionKey));
+    this.eventStore.append(
+      this.roomId,
+      fullEvent,
+      persistActionKey ? envelope?.actionId : undefined,
+      persistActionKey ? envelope?.playerId : undefined,
+    );
+    if (persistActionKey && actionKey) this.persistedActionKeys.add(actionKey);
     this.nextSeq += 1;
     this.events.push(fullEvent);
-    this.eventStore.append(this.roomId, fullEvent, envelope?.actionId, envelope?.playerId);
+    const previousPhase = this.game.phase;
     reduceGameEvent(this.game, fullEvent);
+    this.debug("event.applied", {
+      seq: fullEvent.seq,
+      eventType: fullEvent.type,
+      phaseBefore: previousPhase,
+      phaseAfter: this.game.phase,
+      actionId: envelope?.actionId,
+    });
   }
 
   private broadcastViews() {
@@ -611,6 +724,30 @@ export class KrakenRoom extends Room {
       code,
       reason,
     });
+  }
+
+  private scheduleIdleDisposal() {
+    this.cancelIdleDisposal();
+    const ttlMs = roomIdleTtlMs();
+    this.debug("room.idle_timer_started", { ttlMs });
+    this.idleDisposalTimer = setTimeout(() => {
+      this.idleDisposalTimer = undefined;
+      if (this.clients.length > 0) return;
+      this.debug("room.idle_expired", { ttlMs });
+      this.appendAndApply({ type: "room.closed", reason: "timeout" });
+      void this.disconnect();
+    }, ttlMs);
+  }
+
+  private cancelIdleDisposal() {
+    if (!this.idleDisposalTimer) return;
+    clearTimeout(this.idleDisposalTimer);
+    this.idleDisposalTimer = undefined;
+    this.debug("room.idle_timer_cancelled");
+  }
+
+  private debug(message: string, details?: Record<string, unknown>) {
+    gameDebugLog(`room:${this.roomId}`, message, details);
   }
 
   private requirePhase(phase: GameState["phase"]) {

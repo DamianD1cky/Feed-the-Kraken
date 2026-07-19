@@ -1,34 +1,47 @@
 import type { VoyageMode } from "@feed/shared";
 
-type HexKind = "cult" | "pirate" | "sailor" | "path" | "void";
+type PlayableHexKind = "cult" | "pirate" | "sailor" | "path";
+type HexKind = PlayableHexKind | "void";
+type Point = readonly [number, number];
+type HexAddress = readonly [number, number];
 
-type HexCell = {
+type HexCell<K extends HexKind = HexKind> = {
   key: string;
-  kind: HexKind;
+  kind: K;
   i: number;
   j: number;
   cx: number;
   cy: number;
 };
 
-const FILL: Record<Exclude<HexKind, "void">, string> = {
-  cult: "#f4b301",
-  pirate: "#f73301",
-  sailor: "#72b8f4",
-  path: "#ddeffb",
+type MapPalette = {
+  fill: Record<PlayableHexKind, string>;
+  stroke: string;
+  frame: string;
 };
 
-const STROKE = "#6eb7b6";
-const VOID_FILL = "#32303b";
-const FRAME = "#32303b";
+type MapDefinition = {
+  id: VoyageMode;
+  label: string;
+  origin: { x: number; y: number };
+  axisLeft: { x: number; y: number };
+  axisRight: { x: number; y: number };
+  hexSize: number;
+  hexRotation: number;
+  activeAddresses: ReadonlyArray<HexAddress>;
+  framePoints: ReadonlyArray<Point>;
+  startAddress: HexAddress;
+  victoryDistance: number;
+  palette: MapPalette;
+};
 
-const ORIGIN = { x: 525.15, y: 174.26 };
-const AXIS_LEFT = { x: -115.77, y: 63.75 };
-const AXIS_RIGHT = { x: 113.33, y: 68.53 };
-const HEX_SIZE = 76.4;
-const HEX_ROTATION = 1.16;
+type MapBoard = {
+  definition: MapDefinition;
+  activeCells: Array<HexCell<PlayableHexKind>>;
+  backgroundCells: Array<HexCell<"void">>;
+};
 
-const ACTIVE_ADDRESSES: ReadonlyArray<readonly [number, number]> = [
+const QUICK_ACTIVE_ADDRESSES: ReadonlyArray<HexAddress> = [
   [0, 0],
   [1, 0], [0, 1],
   [2, 0], [1, 1], [0, 2],
@@ -42,7 +55,13 @@ const ACTIVE_ADDRESSES: ReadonlyArray<readonly [number, number]> = [
   [5, 5],
 ];
 
-const FRAME_POINTS: ReadonlyArray<readonly [number, number]> = [
+const LONG_ACTIVE_ADDRESSES: ReadonlyArray<HexAddress> = [
+  ...QUICK_ACTIVE_ADDRESSES,
+  [6, 5], [5, 6],
+  [6, 6],
+];
+
+const QUICK_FRAME_POINTS: ReadonlyArray<Point> = [
   [570, 64],
   [608, 88], [656, 120], [704, 152], [752, 184],
   [798, 216], [845, 248], [892, 280], [947, 316],
@@ -60,39 +79,113 @@ const FRAME_POINTS: ReadonlyArray<readonly [number, number]> = [
   [474, 104], [511, 88], [550, 72],
 ];
 
-function pointString(points: ReadonlyArray<readonly [number, number]>) {
+const LONG_FRAME_POINTS: ReadonlyArray<Point> = [
+  [500, 12], [574, 16], [590, 48], [615, 64],
+  [657, 80], [699, 96], [744, 128], [767, 144],
+  [803, 160], [840, 192], [919, 224], [943, 256],
+  [961, 288], [947, 320], [970, 416], [964, 432],
+  [949, 480], [922, 512], [894, 560], [881, 592],
+  [856, 640], [828, 688], [805, 720], [787, 752],
+  [778, 768], [761, 800], [746, 832], [733, 864],
+  [714, 896], [686, 928], [644, 960], [612, 976],
+  [516, 992], [492, 992], [470, 960], [453, 944],
+  [388, 928], [365, 896], [346, 864], [331, 832],
+  [330, 768], [328, 752], [275, 736], [247, 720],
+  [229, 688], [204, 640], [199, 592], [201, 560],
+  [152, 544], [123, 512], [103, 480], [95, 448],
+  [93, 416], [95, 384], [95, 352], [92, 320],
+  [99, 288], [114, 256], [157, 224], [209, 192],
+  [263, 160], [323, 128], [376, 96], [445, 64],
+  [478, 32],
+];
+
+const MAP_DEFINITIONS: Record<VoyageMode, MapDefinition> = {
+  quick: {
+    id: "quick",
+    label: "快速航行",
+    origin: { x: 525.15, y: 174.26 },
+    axisLeft: { x: -115.77, y: 63.75 },
+    axisRight: { x: 113.33, y: 68.53 },
+    hexSize: 76.4,
+    hexRotation: 1.16,
+    activeAddresses: QUICK_ACTIVE_ADDRESSES,
+    framePoints: QUICK_FRAME_POINTS,
+    startAddress: [5, 5],
+    victoryDistance: 3,
+    palette: {
+      fill: {
+        cult: "#f4b301",
+        pirate: "#f73301",
+        sailor: "#72b8f4",
+        path: "#ddeffb",
+      },
+      stroke: "#6eb7b6",
+      frame: "#32303b",
+    },
+  },
+  long: {
+    id: "long",
+    label: "漫长航行",
+    origin: { x: 525.18, y: 103.61 },
+    axisLeft: { x: -115.05, y: 68.26 },
+    axisRight: { x: 116.87, y: 64.9 },
+    hexSize: 77.2,
+    hexRotation: -0.95,
+    activeAddresses: LONG_ACTIVE_ADDRESSES,
+    framePoints: LONG_FRAME_POINTS,
+    startAddress: [6, 6],
+    victoryDistance: 4,
+    palette: {
+      fill: {
+        cult: "#f5ad00",
+        pirate: "#f62600",
+        sailor: "#b1ebf7",
+        path: "#edfcff",
+      },
+      stroke: "#68b7b9",
+      frame: "#2b2a30",
+    },
+  },
+};
+
+function pointString(points: ReadonlyArray<Point>) {
   return points.map(([x, y]) => `${x},${y}`).join(" ");
 }
 
-function centerAt(i: number, j: number) {
+function centerAt(definition: MapDefinition, i: number, j: number) {
   return {
-    x: ORIGIN.x + i * AXIS_LEFT.x + j * AXIS_RIGHT.x,
-    y: ORIGIN.y + i * AXIS_LEFT.y + j * AXIS_RIGHT.y,
+    x: definition.origin.x + i * definition.axisLeft.x + j * definition.axisRight.x,
+    y: definition.origin.y + i * definition.axisLeft.y + j * definition.axisRight.y,
   };
 }
 
 /** 设计稿使用平顶六边形，左右为尖角。 */
-function hexPoints(cx: number, cy: number, size = HEX_SIZE) {
+function hexPoints(definition: MapDefinition, cx: number, cy: number) {
   const points: Array<[number, number]> = [];
   for (let vertex = 0; vertex < 6; vertex++) {
-    const angle = ((HEX_ROTATION + vertex * 60) * Math.PI) / 180;
+    const angle = ((definition.hexRotation + vertex * 60) * Math.PI) / 180;
     points.push([
-      cx + size * Math.cos(angle),
-      cy + size * Math.sin(angle),
+      cx + definition.hexSize * Math.cos(angle),
+      cy + definition.hexSize * Math.sin(angle),
     ]);
   }
   return pointString(points);
 }
 
-function cellKind(i: number, j: number): Exclude<HexKind, "void"> {
+function cellKind(i: number, j: number): PlayableHexKind {
   if (i === 0 && j === 0) return "cult";
   if (j === 0 && i >= 1 && i <= 3) return "pirate";
   if (i === 0 && j >= 1 && j <= 3) return "sailor";
   return "path";
 }
 
-function createCell(i: number, j: number, kind: HexKind): HexCell {
-  const center = centerAt(i, j);
+function createCell<K extends HexKind>(
+  definition: MapDefinition,
+  i: number,
+  j: number,
+  kind: K,
+): HexCell<K> {
+  const center = centerAt(definition, i, j);
   return {
     key: `${kind}-${i}-${j}`,
     kind,
@@ -103,57 +196,75 @@ function createCell(i: number, j: number, kind: HexKind): HexCell {
   };
 }
 
-const ACTIVE_CELLS = ACTIVE_ADDRESSES.map(([i, j]) => createCell(i, j, cellKind(i, j)));
-
-const NEIGHBOR_OFFSETS: ReadonlyArray<readonly [number, number]> = [
+const NEIGHBOR_OFFSETS: ReadonlyArray<HexAddress> = [
   [1, 0], [-1, 0],
   [0, 1], [0, -1],
   [1, -1], [-1, 1],
 ];
 
-const activeAddressKeys = new Set(
-  ACTIVE_ADDRESSES.map(([i, j]) => `${i},${j}`),
-);
-const backgroundAddresses = new Map<string, readonly [number, number]>();
+function createBoard(definition: MapDefinition): MapBoard {
+  const activeCells = definition.activeAddresses
+    .map(([i, j]) => createCell(definition, i, j, cellKind(i, j)));
+  const activeAddressKeys = new Set(
+    definition.activeAddresses.map(([i, j]) => `${i},${j}`),
+  );
+  const backgroundAddresses = new Map<string, HexAddress>();
 
-for (const [i, j] of ACTIVE_ADDRESSES) {
-  for (const [di, dj] of NEIGHBOR_OFFSETS) {
-    const neighbor: readonly [number, number] = [i + di, j + dj];
-    const key = `${neighbor[0]},${neighbor[1]}`;
-    if (!activeAddressKeys.has(key)) {
-      backgroundAddresses.set(key, neighbor);
+  for (const [i, j] of definition.activeAddresses) {
+    for (const [di, dj] of NEIGHBOR_OFFSETS) {
+      const neighbor: HexAddress = [i + di, j + dj];
+      const key = `${neighbor[0]},${neighbor[1]}`;
+      if (!activeAddressKeys.has(key)) {
+        backgroundAddresses.set(key, neighbor);
+      }
     }
   }
+
+  return {
+    definition,
+    activeCells,
+    backgroundCells: [...backgroundAddresses.values()]
+      .map(([i, j]) => createCell(definition, i, j, "void")),
+  };
 }
 
-const BACKGROUND_CELLS = [...backgroundAddresses.values()]
-  .map(([i, j]) => createCell(i, j, "void"));
+const MAP_BOARDS: Record<VoyageMode, MapBoard> = {
+  quick: createBoard(MAP_DEFINITIONS.quick),
+  long: createBoard(MAP_DEFINITIONS.long),
+};
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function findShipCell(x: number, y: number) {
-  let address: readonly [number, number];
-  if (y >= 3) {
+function hexDistance(a: HexAddress, b: HexAddress) {
+  const di = a[0] - b[0];
+  const dj = a[1] - b[1];
+  return (Math.abs(di) + Math.abs(dj) + Math.abs(di + dj)) / 2;
+}
+
+function findShipCell(board: MapBoard, x: number, y: number) {
+  const { definition, activeCells } = board;
+  let address: HexAddress;
+  if (y >= definition.victoryDistance) {
     address = [0, 0];
-  } else if (x >= 3) {
-    address = [0, clamp(3 - y, 1, 3)];
-  } else if (x <= -3) {
-    address = [clamp(3 - y, 1, 3), 0];
+  } else if (x >= definition.victoryDistance) {
+    address = [0, clamp(definition.victoryDistance - y, 1, 3)];
+  } else if (x <= -definition.victoryDistance) {
+    address = [clamp(definition.victoryDistance - y, 1, 3), 0];
   } else {
     address = [
-      5 - y - Math.max(x, 0),
-      5 - y + Math.min(x, 0),
+      definition.startAddress[0] - y - Math.max(x, 0),
+      definition.startAddress[1] - y + Math.min(x, 0),
     ];
   }
 
-  const exact = ACTIVE_CELLS.find((cell) => cell.i === address[0] && cell.j === address[1]);
+  const exact = activeCells.find((cell) => cell.i === address[0] && cell.j === address[1]);
   if (exact) return exact;
 
-  return ACTIVE_CELLS.reduce((best, cell) => {
-    const currentDistance = Math.abs(cell.i - address[0]) + Math.abs(cell.j - address[1]);
-    const bestDistance = Math.abs(best.i - address[0]) + Math.abs(best.j - address[1]);
+  return activeCells.reduce((best, cell) => {
+    const currentDistance = hexDistance([cell.i, cell.j], address);
+    const bestDistance = hexDistance([best.i, best.j], address);
     return currentDistance < bestDistance ? cell : best;
   });
 }
@@ -165,44 +276,48 @@ type HexMapProps = {
 };
 
 export function HexMap({ x, y, voyageMode }: HexMapProps) {
-  const ship = findShipCell(x, y);
-  const framePoints = pointString(FRAME_POINTS);
+  const board = MAP_BOARDS[voyageMode];
+  const { definition, activeCells, backgroundCells } = board;
+  const ship = findShipCell(board, x, y);
+  const framePoints = pointString(definition.framePoints);
+  const titleId = `${definition.id}-map-title`;
+  const clipId = `${definition.id}-map-frame`;
 
   return (
-    <div className="hex-map" aria-label="快速航行海图">
+    <div className="hex-map" aria-label={`${definition.label}海图`}>
       <svg
         className="hex-map-svg"
         viewBox="0 0 1024 1024"
         role="img"
-        aria-labelledby="quick-map-title"
+        aria-labelledby={titleId}
       >
-        <title id="quick-map-title">快速航行海图</title>
+        <title id={titleId}>{definition.label}海图</title>
         <defs>
-          <clipPath id="quick-map-frame">
+          <clipPath id={clipId}>
             <polygon points={framePoints} />
           </clipPath>
         </defs>
 
-        <polygon points={framePoints} fill={FRAME} />
-        <g clipPath="url(#quick-map-frame)">
-          {BACKGROUND_CELLS.map((cell) => (
+        <polygon points={framePoints} fill={definition.palette.frame} />
+        <g clipPath={`url(#${clipId})`}>
+          {backgroundCells.map((cell) => (
             <polygon
               key={cell.key}
-              points={hexPoints(cell.cx, cell.cy)}
-              fill={VOID_FILL}
-              stroke={STROKE}
+              points={hexPoints(definition, cell.cx, cell.cy)}
+              fill={definition.palette.frame}
+              stroke={definition.palette.stroke}
               strokeWidth="3"
             />
           ))}
         </g>
 
-        {ACTIVE_CELLS.map((cell) => (
+        {activeCells.map((cell) => (
           <polygon
             key={cell.key}
             className={cell === ship ? "hex-cell current" : "hex-cell"}
-            points={hexPoints(cell.cx, cell.cy)}
-            fill={FILL[cell.kind as Exclude<HexKind, "void">]}
-            stroke={STROKE}
+            points={hexPoints(definition, cell.cx, cell.cy)}
+            fill={definition.palette.fill[cell.kind]}
+            stroke={definition.palette.stroke}
             strokeWidth="3.2"
           />
         ))}
@@ -217,13 +332,10 @@ export function HexMap({ x, y, voyageMode }: HexMapProps) {
         </text>
       </svg>
       <div className="hex-map-legend">
-        <span><i className="swatch cult" />克拉肯</span>
-        <span><i className="swatch pirate" />海盗</span>
-        <span><i className="swatch sailor" />水手</span>
-        <span className="muted">
-          {voyageMode === "long" ? "漫长模式暂用快速海图 · " : ""}
-          位置 ({x}, {y})
-        </span>
+        <span><i className="swatch" style={{ backgroundColor: definition.palette.fill.cult }} />克拉肯</span>
+        <span><i className="swatch" style={{ backgroundColor: definition.palette.fill.pirate }} />海盗</span>
+        <span><i className="swatch" style={{ backgroundColor: definition.palette.fill.sailor }} />水手</span>
+        <span className="muted">位置 ({x}, {y})</span>
       </div>
     </div>
   );

@@ -37,6 +37,7 @@ export function createLobbyState(roomId: string): GameState {
     },
     votes: {},
     mutinyTieCandidates: [],
+    mutinyEliminatorId: undefined,
     cultRitualDeck: [],
     pendingCultRitual: false,
     emergencyVoyage: false,

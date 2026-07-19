@@ -47,6 +47,22 @@ test("projectView exposes mutiny completion without private gun counts", () => {
   assert.doesNotMatch(view.publicLog.at(-1)?.message ?? "", /2/);
 });
 
+test("mutiny tie-break prompt follows the eliminated candidate", () => {
+  const state = createStartedState();
+  state.phase = "mutiny_tiebreak";
+  state.mutinyTieCandidates = ["pirate-2", "sailor-1", "cult-1"];
+  state.mutinyEliminatorId = "pirate-1";
+
+  assert.equal(projectView(state, "pirate-1", []).privatePrompt?.action, "mutiny-tiebreak");
+  assert.equal(projectView(state, "sailor-1", []).privatePrompt?.action, "wait");
+
+  state.mutinyTieCandidates = ["sailor-1", "cult-1"];
+  state.mutinyEliminatorId = "pirate-2";
+
+  assert.equal(projectView(state, "pirate-2", []).privatePrompt?.action, "mutiny-tiebreak");
+  assert.equal(projectView(state, "pirate-1", []).privatePrompt?.action, "wait");
+});
+
 function createStartedState() {
   const state = createLobbyState("room-1");
   const players = [

@@ -121,15 +121,18 @@ function getPrivatePrompt(state: GameState, viewerId: PlayerId): PrivatePrompt |
     return { title: "等待其他船员", description: "你已亮枪，等待结果。", action: "wait" };
   }
   if (state.phase === "mutiny_tiebreak") {
-    if (viewerId === state.offices.captainId) {
+    if (viewerId === state.mutinyEliminatorId) {
+      const isCurrentCaptain = viewerId === state.offices.captainId;
       return {
         title: "叛变平手",
-        description: "轮流剔除一名平手者，直到只剩一位新船长。",
+        description: isCurrentCaptain
+          ? "你先剔除一名并列者；被剔除者接过裁决权，直到只剩一位新船长。"
+          : "你刚被剔除。请选择下一名要剔除的并列者；最后留下者成为新船长。",
         action: "mutiny-tiebreak",
         candidates: state.mutinyTieCandidates,
       };
     }
-    return { title: "叛变平手", description: "船长正在裁决平手。", action: "wait" };
+    return { title: "叛变平手", description: "等待当前裁决者剔除一名并列者。", action: "wait" };
   }
   if (state.phase === "captain_nav") {
     if (viewerId === state.offices.captainId) {
@@ -306,7 +309,7 @@ function publicMessage(event: GameEvent): string {
       return event.success
         ? `叛变成功！总枪数 ${event.totalGuns}`
         : `叛变失败（总枪数 ${event.totalGuns}），枪收回，进入航行`;
-    case "mutiny.tie_eliminated": return "船长剔除了一名叛变平手者";
+    case "mutiny.tie_eliminated": return "一名叛变平手者被剔除";
     case "mutiny.captain_changed": return "叛变产生了新船长";
     case "navigation.dealt": return event.role === "captain" ? "船长抽取了 2 张航行牌" : "大副抽取了 2 张航行牌";
     case "navigation.kept": return event.role === "captain" ? "船长已将 1 张牌放入航海日志" : "大副已将 1 张牌放入航海日志";

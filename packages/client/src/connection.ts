@@ -28,7 +28,7 @@ export async function joinGameRoom(roomId: string, nickname: string, mode: "new-
   if (mode === "reconnect") {
     const stored = readFullStoredSession(trimmedRoomId);
     if (!stored?.playerId || !stored.sessionToken || !stored.reconnectToken) {
-      throw new Error("本标签页没有该房间的可恢复会话。请用原先进入游戏的标签页点「恢复上次身份」，或作为新玩家加入（仅大厅阶段）。");
+      throw new Error("本浏览器没有该房间的有效身份。请确认房间号，或作为新玩家加入（仅大厅阶段）。");
     }
     const room = await client.joinById(trimmedRoomId, {
       nickname,
@@ -106,22 +106,54 @@ function storageKey(roomId: string) {
   return `${STORAGE_KEY}:${roomId}`;
 }
 
-/** Per-tab storage so multiple windows in one browser can join as different players. */
+/**
+ * sessionStorage 保持本地多标签联调时的身份隔离；
+ * localStorage 保存每个房间最近使用的身份，使关闭页面后只输入房间号即可恢复。
+ */
 function writeStoredSession(message: StoredSession) {
   const payload = JSON.stringify(message);
-  sessionStorage.setItem(storageKey(message.roomId), payload);
-  localStorage.removeItem(storageKey(message.roomId));
+  const key = storageKey(message.roomId);
+  sessionStorage.setItem(key, payload);
+  try {
+    localStorage.setItem(key, payload);
+  } catch {
+    // 隐私模式或存储额度受限时，仍保留当前标签页的恢复能力。
+  }
 }
 
 function readFullStoredSession(roomId: string): StoredSession | undefined {
   const key = storageKey(roomId);
-  const raw = sessionStorage.getItem(key) ?? localStorage.getItem(key);
+  const tabSession = parseStoredSession(sessionStorage.getItem(key), roomId);
+  if (tabSession) return tabSession;
+  sessionStorage.removeItem(key);
+
+  let persistedRaw: string | null = null;
+  try {
+    persistedRaw = localStorage.getItem(key);
+  } catch {
+    return undefined;
+  }
+  const persistedSession = parseStoredSession(persistedRaw, roomId);
+  if (!persistedSession) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignored
+    }
+    return undefined;
+  }
+  sessionStorage.setItem(key, JSON.stringify(persistedSession));
+  return persistedSession;
+}
+
+function parseStoredSession(raw: string | null, roomId: string): StoredSession | undefined {
   if (!raw) return undefined;
   try {
     const session = JSON.parse(raw) as StoredSession;
     if (!session.playerId || !session.sessionToken || !session.reconnectToken) return undefined;
+    if (!Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now()) return undefined;
     if (session.sessionToken.includes("hidden") || session.reconnectToken.includes("hidden")) return undefined;
-    if (session.roomId && session.roomId !== roomId) return undefined;
+    if (session.roomId !== roomId) return undefined;
     return session;
   } catch {
     return undefined;

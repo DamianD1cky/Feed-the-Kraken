@@ -48,7 +48,7 @@ function Lobby() {
       </div>
       <div>
         <h2>加入房间</h2>
-        <p>会话按标签页隔离。断线后请在<strong>同一标签页</strong>填入房间号并点「恢复上次身份」。</p>
+        <p>输入房间号即可恢复本浏览器最近保存的身份；当前打开的多个标签页仍各自隔离。</p>
         <input value={roomId} onChange={(event) => setRoomId(event.target.value)} placeholder="房间号" />
         <input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="你的昵称" />
         <button disabled={busy || !roomId.trim()} onClick={() => run(() => joinGameRoom(roomId.trim(), nickname, "new-player"))}>

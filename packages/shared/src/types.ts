@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 export type VoyageMode = "quick" | "long";
 
@@ -95,6 +95,8 @@ export type GameState = {
   /** 叛变握枪；船长不参与。 */
   votes: Record<PlayerId, number>;
   mutinyTieCandidates: PlayerId[];
+  /** 平手连锁裁决：当前有权剔除一名候选人的玩家。 */
+  mutinyEliminatorId?: PlayerId;
   cultRitualDeck: CultRitualKind[];
   pendingCultRitual: boolean;
   lastCultRitual?: CultRitualKind;
@@ -229,7 +231,15 @@ export type ClientActionEnvelope = {
 };
 
 export type ServerMessage =
-  | { type: "session.established"; protocolVersion: number; roomId: RoomId; playerId: PlayerId; sessionToken: string; reconnectToken: string }
+  | {
+      type: "session.established";
+      protocolVersion: number;
+      roomId: RoomId;
+      playerId: PlayerId;
+      sessionToken: string;
+      reconnectToken: string;
+      expiresAt: number;
+    }
   | { type: "view.updated"; protocolVersion: number; view: PlayerView }
   | { type: "action.rejected"; protocolVersion: number; actionId?: string; code: string; reason: string }
   | { type: "room.closed"; protocolVersion: number; reason: string };
