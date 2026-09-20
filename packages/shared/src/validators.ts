@@ -2,7 +2,7 @@ import { z } from "zod";
 import { PROTOCOL_VERSION } from "./types.js";
 
 export const clientActionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("startGame") }),
+  z.object({ type: z.literal("startGame"), voyageMode: z.enum(["quick", "long"]).optional() }),
   z.object({
     type: z.literal("assignOfficers"),
     firstMateId: z.string().min(1),
@@ -10,7 +10,7 @@ export const clientActionSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("commitMutiny"),
-    guns: z.number().int().min(0).max(3),
+    guns: z.number().int().min(0).max(40),
   }),
   z.object({
     type: z.literal("eliminateTieCandidate"),

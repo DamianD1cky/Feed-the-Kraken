@@ -120,6 +120,7 @@ export function buildFactionPool(playerCount: number, seed: string): Faction[] {
   };
   const row = table[playerCount] ?? table[6]!;
   const pool: Faction[] = ["cult"];
+  for (let i = 0; i < row.cultist; i += 1) pool.push("cult");
   for (let i = 0; i < row.sailor; i += 1) pool.push("sailor");
   for (let i = 0; i < row.pirate; i += 1) pool.push("pirate");
   return shuffle(pool, `${seed}:factions`);

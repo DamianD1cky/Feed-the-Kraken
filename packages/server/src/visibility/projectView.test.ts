@@ -76,6 +76,7 @@ function createStartedState() {
     state.players[player.id] = createLobbyPlayer(player.id, player.id);
     state.players[player.id].faction = player.faction;
     state.players[player.id].role = player.role;
+    if (player.faction === "pirate") state.players[player.id].knownFactions = { "pirate-1": "pirate", "pirate-2": "pirate" };
     state.seats.push(player.id);
   }
 

@@ -50,8 +50,8 @@ export async function joinGameRoom(roomId: string, nickname: string, mode: "new-
 }
 
 export function sendAction(action: ClientAction) {
-  const { room, session } = useAppStore.getState();
-  if (!room || !session) return;
+  const { room, session, connected } = useAppStore.getState();
+  if (!room || !session || !connected) return;
   const envelope: ClientActionEnvelope = {
     protocolVersion: PROTOCOL_VERSION,
     actionId: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
@@ -60,7 +60,18 @@ export function sendAction(action: ClientAction) {
     action,
     sentAt: Date.now(),
   };
-  room.send("action", envelope);
+  try {
+    room.send("action", envelope);
+  } catch {
+    useAppStore.getState().setConnected(false);
+    useAppStore.getState().setError("动作未发送，请恢复连接后重试。");
+  }
+}
+
+export function leaveGameRoom() {
+  const { room } = useAppStore.getState();
+  useAppStore.getState().reset();
+  void room?.leave().catch(() => undefined);
 }
 
 function requestResync(room: Room) {
@@ -74,25 +85,35 @@ function requestResync(room: Room) {
 
 function attachRoom(room: Room) {
   const store = useAppStore.getState();
+  const previous = store.room;
+  if (previous && previous !== room) void previous.leave().catch(() => undefined);
   store.setRoom(room);
+  store.setConnected(true);
   store.setError(undefined);
 
   room.onMessage("session.established", (message: StoredSession) => {
+    if (useAppStore.getState().room !== room) return;
     store.setSession(message);
     writeStoredSession(message);
   });
   room.onMessage("view.updated", (message: Extract<ServerMessage, { type: "view.updated" }>) => {
+    if (useAppStore.getState().room !== room) return;
     useAppStore.getState().setView(message.view);
     useAppStore.getState().setError(undefined);
   });
   room.onMessage("action.rejected", (message: Extract<ServerMessage, { type: "action.rejected" }>) => {
+    if (useAppStore.getState().room !== room) return;
     useAppStore.getState().setError(message.reason);
   });
   room.onMessage("room.closed", (message: Extract<ServerMessage, { type: "room.closed" }>) => {
+    if (useAppStore.getState().room !== room) return;
+    useAppStore.getState().setConnected(false);
     useAppStore.getState().setError(`房间已关闭：${message.reason}`);
   });
   room.onLeave((code) => {
     const current = useAppStore.getState();
+    if (current.room !== room) return;
+    current.setConnected(false);
     // 若已有视图且只是短暂断开，保留视图并提示；完全未进房则只显示错误
     if (!current.view) {
       current.setError(`连接已断开：${code}。若正在恢复身份，请确认房间号与会话仍有效。`);

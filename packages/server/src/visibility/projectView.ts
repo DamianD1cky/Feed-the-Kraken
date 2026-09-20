@@ -17,8 +17,7 @@ export function projectView(state: GameState, viewerId: PlayerId, events: GameEv
 
   const players = state.seats.map((playerId) => {
     const player = state.players[playerId]!;
-    const samePirateTeam = viewer.faction === "pirate" && player.faction === "pirate";
-    const canSeeFaction = playerId === viewerId || samePirateTeam;
+    const canSeeFaction = state.phase === "ended" || (state.phase !== "lobby" && playerId === viewerId);
     return {
       id: player.id,
       nickname: player.nickname,
@@ -28,8 +27,8 @@ export function projectView(state: GameState, viewerId: PlayerId, events: GameEv
       offDuty: state.offDuty.includes(playerId),
       muted: player.muted,
       notFactions: player.notFactions,
-      faction: canSeeFaction ? player.faction : ("unknown" as const),
-      role: playerId === viewerId ? player.role : undefined,
+      faction: canSeeFaction ? player.faction : (state.phase !== "lobby" ? viewer.knownFactions?.[playerId] : undefined) ?? ("unknown" as const),
+      role: canSeeFaction ? player.role : undefined,
       isHost: state.hostPlayerId === playerId,
       isCaptain: state.offices.captainId === playerId,
       isFirstMate: state.offices.firstMateId === playerId,
@@ -46,11 +45,13 @@ export function projectView(state: GameState, viewerId: PlayerId, events: GameEv
     phase: state.phase,
     voyageMode: state.voyageMode,
     supplyLineCrossed: state.supplyLineCrossed,
+    roundNo: state.roundNo,
+    mapActions: state.mapActions,
     me: {
       id: viewer.id,
       nickname: viewer.nickname,
-      faction: viewer.faction,
-      role: viewer.role,
+      faction: state.phase === "lobby" ? undefined : viewer.faction,
+      role: state.phase === "lobby" ? undefined : viewer.role,
       guns: viewer.guns,
       connected: viewer.connected,
       isHost: state.hostPlayerId === viewerId,
@@ -87,6 +88,9 @@ function peekFor(state: GameState, viewerId: PlayerId): NavigationCard[] | undef
 }
 
 function getPrivatePrompt(state: GameState, viewerId: PlayerId): PrivatePrompt | undefined {
+  if (state.players[viewerId]?.dead && state.phase !== "ended") {
+    return { title: "你已离船", description: "请保持沉默，不公开身份或弃牌；你仍与当前阵营共同胜负。", action: "wait" };
+  }
   if (state.phase === "lobby") {
     if (state.hostPlayerId === viewerId) {
       return { title: "等待开局", description: "凑齐玩家后由你开始游戏。", action: "start-game" };
@@ -166,6 +170,9 @@ function getPrivatePrompt(state: GameState, viewerId: PlayerId): PrivatePrompt |
   }
   if (state.phase === "map_cabin") {
     if (viewerId === state.offices.captainId) {
+      if (state.cabinSearch) {
+        return { title: "船舱搜查结果", description: "请查看你的私密信息，确认后继续执行航行牌效果。", action: "acknowledge" };
+      }
       return {
         title: "船舱搜查",
         description: "选择一名玩家秘密查看其阵营。被搜查者不可再被皈依。",
@@ -232,7 +239,7 @@ function getPrivatePrompt(state: GameState, viewerId: PlayerId): PrivatePrompt |
         title: "望远镜",
         description: "选择一名玩家查看牌堆顶。",
         action: "pick-player",
-        candidates: state.seats.filter((id) => !state.players[id]?.dead),
+        candidates: state.seats.filter((id) => id !== viewerId && !state.players[id]?.dead),
       };
     }
     return { title: "望远镜", description: "船长正在指定查看者。", action: "wait" };
@@ -262,7 +269,7 @@ function getPrivatePrompt(state: GameState, viewerId: PlayerId): PrivatePrompt |
     if (viewerId === cultLeaderId(state)) {
       return {
         title: "邪教仪式 · 武器库",
-        description: "将 3 把手枪分给最多 3 名玩家（可含自己）。下方为快捷：各给三人 1 枪，或一人 3 枪。",
+        description: "将 3 把手枪分给最多 3 名玩家，可含自己，也可一人多枪。",
         action: "ritual-guns",
         candidates: state.seats.filter((id) => !state.players[id]?.dead),
       };
@@ -285,7 +292,7 @@ function getPrivatePrompt(state: GameState, viewerId: PlayerId): PrivatePrompt |
         title: "紧急领航员",
         description: "领航员已跳船。指定紧急领航员（可为下班玩家），跳过叛变立即航行。",
         action: "pick-player",
-        candidates: state.seats.filter((id) => id !== viewerId && !state.players[id]?.dead),
+        candidates: state.seats.filter((id) => id !== viewerId && id !== state.offices.firstMateId && !state.players[id]?.dead),
       };
     }
     return { title: "紧急航行", description: "船长正在指定紧急领航员。", action: "wait" };
@@ -312,6 +319,7 @@ function publicMessage(event: GameEvent): string {
     case "mutiny.tie_eliminated": return "一名叛变平手者被剔除";
     case "mutiny.captain_changed": return "叛变产生了新船长";
     case "navigation.dealt": return event.role === "captain" ? "船长抽取了 2 张航行牌" : "大副抽取了 2 张航行牌";
+    case "navigation.reshuffled": return "剩余牌堆与深海弃牌已重新洗匀";
     case "navigation.kept": return event.role === "captain" ? "船长已将 1 张牌放入航海日志" : "大副已将 1 张牌放入航海日志";
     case "navigation.journal_ready": return "航海日志已交给领航员";
     case "navigation.chosen": return "领航员选定了最终航线";

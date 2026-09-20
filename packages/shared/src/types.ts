@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 export type VoyageMode = "quick" | "long";
 
@@ -64,6 +64,8 @@ export type InternalPlayer = {
   notFactions: Faction[];
   /** 面前船长简历卡数量（醉酒换船长时参考）。 */
   resumeCount: number;
+  /** 已获知的身份快照；皈依不会让旧同伴自动获知新阵营。 */
+  knownFactions?: Record<PlayerId, Faction>;
 };
 
 export type GameState = {
@@ -81,6 +83,8 @@ export type GameState = {
     firstMateId?: PlayerId;
     navigatorId?: PlayerId;
   };
+  /** 本次成功航行团队，独立于醉酒后的现任船长。 */
+  voyageOffices?: GameState["offices"];
   offDuty: PlayerId[];
   mapActions: Record<string, MapAction>;
   hands: {
@@ -188,6 +192,9 @@ export type PlayerView = {
   phase: Phase;
   voyageMode: VoyageMode;
   supplyLineCrossed: boolean;
+  roundNo: number;
+  /** 服务端剩余的公开地图行动，客户端不再复制规则推导。 */
+  mapActions: Record<string, MapAction>;
   me: VisibleSelf;
   players: VisiblePlayer[];
   ship: { x: number; y: number; heading: Direction };
@@ -210,7 +217,7 @@ export type PlayerView = {
 };
 
 export type ClientAction =
-  | { type: "startGame" }
+  | { type: "startGame"; voyageMode?: VoyageMode }
   | { type: "assignOfficers"; firstMateId: PlayerId; navigatorId: PlayerId }
   | { type: "commitMutiny"; guns: number }
   | { type: "eliminateTieCandidate"; playerId: PlayerId }
@@ -248,7 +255,8 @@ export type GameEvent =
   | { type: "player.joined"; seq: number; playerId: PlayerId; nickname: string; at: number }
   | { type: "session.reconnected"; seq: number; playerId: PlayerId; at: number }
   | { type: "session.disconnected"; seq: number; playerId: PlayerId; at: number }
-  | { type: "game.started"; seq: number; seed: string; at: number }
+  | { type: "game.started"; seq: number; seed: string; voyageMode?: VoyageMode; at: number }
+  | { type: "navigation.reshuffled"; seq: number; cardIds: CardId[]; at: number }
   | { type: "officers.assigned"; seq: number; firstMateId: PlayerId; navigatorId: PlayerId; at: number }
   | { type: "mutiny.committed"; seq: number; playerId: PlayerId; guns: number; at: number }
   | { type: "mutiny.resolved"; seq: number; totalGuns: number; success: boolean; candidates?: PlayerId[]; at: number }

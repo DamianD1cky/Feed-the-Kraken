@@ -5,7 +5,6 @@ import {
   createVoyageDeck,
   defaultVoyageMode,
   INITIAL_GUNS,
-  RESHUFFLE_DECK_THRESHOLD,
   shuffle,
   type Faction,
   type GameState,
@@ -77,6 +76,7 @@ export function assignHiddenRoles(state: GameState, seed: string) {
     player.conversionImmune = false;
     player.notFactions = [];
     player.resumeCount = 0;
+    player.knownFactions = {};
   }
 
   // 11 人局：恰好一名 cultist，其余 cult 为领袖
@@ -93,6 +93,12 @@ export function assignHiddenRoles(state: GameState, seed: string) {
     for (const id of state.seats) {
       const player = state.players[id];
       if (player?.faction === "cult") player.role = "cult_leader";
+    }
+  }
+  for (const player of Object.values(state.players)) {
+    if (player.faction !== "pirate") continue;
+    for (const teammate of Object.values(state.players)) {
+      if (teammate.faction === "pirate") player.knownFactions![teammate.id] = "pirate";
     }
   }
 }
@@ -121,22 +127,11 @@ export function buildCultRituals(seed: string) {
 }
 
 export function peekDeckCardIds(state: GameState, count: number): string[] {
-  const deck =
-    state.hands.deck.length < RESHUFFLE_DECK_THRESHOLD && state.hands.discardPile.length > 0
-      ? [...state.hands.deck, ...state.hands.discardPile]
-      : state.hands.deck;
-  return deck.slice(0, count).map((card) => card.id);
+  return state.hands.deck.slice(0, count).map((card) => card.id);
 }
 
 export function ensureDeckHasCards(state: GameState, count: number) {
-  if (
-    (state.hands.deck.length < RESHUFFLE_DECK_THRESHOLD && state.hands.discardPile.length > 0) ||
-    state.hands.deck.length < count
-  ) {
-    // 与 peekDeckCardIds 使用相同拼接顺序，保证预览 ID 与抽取一致。
-    state.hands.deck = [...state.hands.deck, ...state.hands.discardPile];
-    state.hands.discardPile = [];
-  }
+  if (state.hands.deck.length < count) throw new Error("牌堆不足；必须先产生回洗事件。");
 }
 
 export function appointablePlayerIds(state: GameState, captainId: PlayerId): PlayerId[] {

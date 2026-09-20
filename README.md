@@ -1,79 +1,47 @@
-# 险恶疑航（Feed the Kraken）Web MVP
+# 险恶疑航 · Feed the Kraken
 
-朋友局自用的 Web 桌游骨架：服务端权威、按玩家投射 `PlayerView`、断线可恢复。目标是 4 周内达到可完整打一局（v0.2），当前为简化规则闭环。
+5–11 人熟人局 Web 桌游。服务端权威、逐玩家私密视图、游客身份恢复，使用仓库港口与卡牌素材。请配合外部语音。
 
-## 要求
+当前为**简化海图核心规则版**：支持任命、叛变、航行、牌效、地图行动与邪教仪式；原版逐格箭头海图、22 张角色异能、进程重启恢复尚未实现。
 
-- Node.js 20+
-- pnpm 9+
+## 文档入口
+
+1. [架构与技术现状](docs/1_架构与技术现状.md)：实际技术栈、状态与事件、信息边界、架构优化顺序。
+2. [规则与实现对照](docs/2_规则与实现对照.md)：原版依据、人数配置、已补规则和明确差异。
+3. [开发与验证](docs/3_开发与验证.md)：环境、素材处理、多人测试与验收记录。
+
+[原版规则 PDF](assets/准备/feed-the-kraken-rules.pdf) · [中文规则书](assets/准备/%23%20险恶疑航（Feed%20the%20Kraken）·%20中文规则书.md)
 
 ## 启动
 
+推荐 Node.js 22.12+、pnpm 9。所有命令从仓库根目录执行：
+
 ```bash
 pnpm install
-pnpm --filter @feed/server dev   # http://localhost:2567
-pnpm --filter @feed/client dev   # http://localhost:5173
-```
-
-或根目录：
-
-```bash
 pnpm dev
 ```
 
-## 本地多人联调
+打开 `http://localhost:5173`，服务端默认 `http://localhost:2567`。创建房间并分享房间号，其余玩家用「作为新玩家加入」，至少 5 人可开局。7 人可选快速或漫长航行。
 
-1. 浏览器打开多个**标签页**（活动身份存在 `sessionStorage`，按标签隔离）。
-2. 一页点「创建房间」，把房间号发给其他页。
-3. 其他页用「作为新玩家加入」。
-4. 凑齐至少 5 人后，房主开始游戏。
-5. 断线或关闭页面后，在同一浏览器输入房间号并点「恢复上次身份」。
+本地多标签测试时，每个标签分别加入新玩家。页面断线可直接「恢复连接」，返回港口后可凭房间号「恢复上次身份」。活动标签用 `sessionStorage` 隔离；`localStorage` 仅保存同房间最后一次身份，关闭多个标签后无法分别找回全部玩家。
 
-`localStorage` 会保存每个房间最近使用的游客身份；同一房间若在同一浏览器加入多个玩家，关闭标签页后只能自动恢复最后保存的身份，活动中的标签页不受影响。
-
-默认重连令牌有效期为 7 天，空房间在服务端内存中保留 24 小时。可分别通过 `RECONNECT_SESSION_TTL_MS` 和 `ROOM_IDLE_TTL_MS` 调整。服务端进程重启后的恢复尚需房间快照与会话持久化支持。
-
-## 常用命令
+## 验证
 
 ```bash
 pnpm typecheck
 pnpm test
 pnpm build
+# 服务端运行时：
+node scripts/smoke-game.mjs 5 quick
+node scripts/smoke-game.mjs 11 long
 ```
 
-## 调试模式
+## 素材与持久化
 
-服务端调试日志默认关闭。PowerShell 中启用：
+原始素材保留在 `assets/`，运行时只使用 `packages/client/public/art/` 的 WebP。需要重新生成时安装 `cwebp`，执行 `bash scripts/prepare-assets.sh`。
 
-```powershell
-$env:FTK_DEBUG="1"
-pnpm --filter @feed/server dev
-```
+事件优先写入 `packages/server/data/kraken.sqlite`；原生模块不可用时降级到同目录 `events.jsonl` 并告警。JSONL 不保证掉电原子性。事件日志不等于可恢复房间：进程重启后目前无法恢复会话与进行中的对局。
 
-日志会打印动作接收/拒绝、事件导致的阶段变化，以及哗变时每名玩家的连接状态、投入枪数和仍在等待的玩家 ID。访问 `/api/health` 可通过 `debugMode` 确认是否启用。
+默认令牌有效期 7 天，空房间保留 24 小时。环境变量与部署边界见开发文档。
 
-## 事件落库
-
-- 优先 SQLite：`packages/server/data/kraken.sqlite`（需 `better-sqlite3` 原生模块可用）。
-- 不可用时回退 JSONL：`packages/server/data/events.jsonl`，启动日志会打印警告。
-
-启用 SQLite（若被 pnpm 拦住 native build）：
-
-```bash
-pnpm approve-builds
-# 勾选 better-sqlite3 后重新 pnpm install
-```
-
-## 当前范围
-
-已有：
-
-- 按人数阵营配比（含 5 人局随机袋）
-- **5–6 人快速航行**（19 张牌）/ **7+ 人漫长航行**（23 张牌，含武装）
-- 任命、叛变、航行选牌、跳船、下班
-- 牌效：醉酒 / 缴械 / 美人鱼 / 望远镜 / 邪教起义 / **武装**
-- 地图：船舱搜查、喂食克拉肯；漫长另含 **鞭笞、割舌**
-- 漫长 **补给线**（越过后续补枪至 3）
-- 邪教仪式：皈依 / 武器库 / 邪教船舱搜查
-
-后置：22 张角色异能、Docker/Caddy、LiveKit、美术与 PWA。
+Personal study project, not for distribution.

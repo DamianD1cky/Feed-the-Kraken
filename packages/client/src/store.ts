@@ -9,6 +9,8 @@ type AppState = {
   session?: Session;
   view?: PlayerView;
   error?: string;
+  connected: boolean;
+  setConnected(connected: boolean): void;
   setRoom(room: Room | undefined): void;
   setSession(session: Session): void;
   setView(view: PlayerView): void;
@@ -17,9 +19,11 @@ type AppState = {
 };
 
 export const useAppStore = create<AppState>((set) => ({
+  connected: false,
+  setConnected: (connected) => set({ connected }),
   setRoom: (room) => set({ room }),
   setSession: (session) => set({ session }),
   setView: (view) => set({ view }),
   setError: (error) => set({ error }),
-  reset: () => set({ room: undefined, session: undefined, view: undefined, error: undefined }),
+  reset: () => set({ room: undefined, session: undefined, view: undefined, error: undefined, connected: false }),
 }));

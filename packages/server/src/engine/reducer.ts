@@ -46,7 +46,7 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
     }
     case "game.started": {
       assignHiddenRoles(state, event.seed);
-      state.voyageMode = resolveVoyageMode(state.seats.length);
+      state.voyageMode = event.voyageMode ?? resolveVoyageMode(state.seats.length);
       state.supplyLineCrossed = false;
       state.hands = {
         deck: buildShuffledDeck(event.seed, state.voyageMode),
@@ -69,6 +69,19 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
       state.offices = { captainId: pickCaptain(state.seats, event.seed) };
       state.winner = undefined;
       clearEphemeral(state);
+      return;
+    }
+    case "navigation.reshuffled": {
+      const cards = new Map([...state.hands.deck, ...state.hands.discardPile].map((card) => [card.id, card]));
+      if (event.cardIds.length !== cards.size || new Set(event.cardIds).size !== cards.size) {
+        throw new Error("回洗事件牌数不一致。");
+      }
+      state.hands.deck = event.cardIds.map((id) => {
+        const card = cards.get(id);
+        if (!card) throw new Error(`回洗事件包含未知牌 ${id}`);
+        return card;
+      });
+      state.hands.discardPile = [];
       return;
     }
     case "officers.assigned": {
@@ -157,6 +170,7 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
       return;
     }
     case "navigation.revealed": {
+      state.voyageOffices = { ...state.offices };
       const card = state.hands.journal.find((c) => c.id === event.cardId) ?? state.lastRevealedCard;
       if (card) {
         state.lastRevealedCard = card;
@@ -293,6 +307,11 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
       if (target) {
         target.faction = "cult";
         target.role = "cultist";
+        const leader = Object.values(state.players).find((player) => player.role === "cult_leader");
+        if (leader) {
+          (target.knownFactions ??= {})[leader.id] = "cult";
+          (leader.knownFactions ??= {})[target.id] = "cult";
+        }
       }
       return;
     }
@@ -325,6 +344,7 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
       state.roundNo = event.roundNo;
       clearNavHands(state);
       clearEphemeral(state);
+      state.voyageOffices = undefined;
       state.emergencyVoyage = false;
       state.phase = "officers";
       return;
@@ -348,11 +368,12 @@ export function reduceGameEvent(state: GameState, event: GameEvent) {
 
 export function resolveOffDutyPlayerIds(state: GameState): PlayerId[] {
   const offices = offDutyOffices(state.seats.length);
+  const team = state.voyageOffices ?? state.offices;
   const ids: PlayerId[] = [];
   for (const office of offices) {
-    if (office === "captain" && state.offices.captainId) ids.push(state.offices.captainId);
-    if (office === "firstMate" && state.offices.firstMateId) ids.push(state.offices.firstMateId);
-    if (office === "navigator" && state.offices.navigatorId) ids.push(state.offices.navigatorId);
+    if (office === "captain" && team.captainId) ids.push(team.captainId);
+    if (office === "firstMate" && team.firstMateId) ids.push(team.firstMateId);
+    if (office === "navigator" && team.navigatorId) ids.push(team.navigatorId);
   }
   return [...new Set(ids)].filter((id) => state.players[id] && !state.players[id]!.dead);
 }
@@ -364,7 +385,7 @@ export function nextDrunkCaptainId(state: GameState): PlayerId {
   const start = current ? seats.indexOf(current) : 0;
   let best: PlayerId | undefined;
   let bestResumes = Number.POSITIVE_INFINITY;
-  for (let offset = 1; offset <= seats.length; offset += 1) {
+  for (let offset = 1; offset < seats.length; offset += 1) {
     const id = seats[(start + offset) % seats.length]!;
     const player = state.players[id];
     if (!player || player.dead || player.muted) continue;
