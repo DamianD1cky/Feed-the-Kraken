@@ -1,0 +1,8 @@
+assets/
+docs/
+scripts/
+packages/server/
+.agents/
+.vscode/
+Agent.md
+railway.json

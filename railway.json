@@ -1,0 +1,22 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "pnpm --filter @feed/shared build && pnpm --filter @feed/server build",
+    "watchPatterns": [
+      "/packages/server/**",
+      "/packages/shared/**",
+      "/package.json",
+      "/pnpm-lock.yaml",
+      "/pnpm-workspace.yaml",
+      "/railway.json"
+    ]
+  },
+  "deploy": {
+    "startCommand": "pnpm --filter @feed/server start",
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 120,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}

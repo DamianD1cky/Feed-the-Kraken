@@ -410,38 +410,86 @@ p {
 }
 .sea-chart {
     margin: 0;
+    --hex-water: #d5e8ec;
+    --hex-pirate: #d95a3d;
+    --hex-sailor: #73b6d8;
+    --hex-cult: #e4b646;
 }
 .sea-chart svg {
-    width: 100%;
+    width: min(100%, 680px);
     display: block;
+    margin-inline: auto;
 }
-.chart-route {
-    stroke: #87a394;
-    stroke-opacity: 0.25;
-    stroke-dasharray: 3 7;
+.chart-legend {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 14px 28px;
+    margin: 8px 0 14px;
+    color: #c5d4cd;
+    font-size: 12px;
 }
-.map-destination {
-    font-size: 16px;
-    letter-spacing: 2px;
-    fill: #ccb879;
+.chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
-.map-destination.pirate {
-    fill: #d69683;
+.chart-legend i {
+    width: 12px;
+    height: 14px;
+    clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
 }
-.map-destination.sailor {
-    fill: #9cc4ca;
+.chart-legend .pirate {
+    background: var(--hex-pirate);
+}
+.chart-legend .sailor {
+    background: var(--hex-sailor);
+}
+.chart-legend .cult {
+    background: var(--hex-cult);
+}
+.chart-frame {
+    fill: #27383f;
+    stroke: #27383f;
+    stroke-width: 28px;
+    stroke-linejoin: round;
+}
+.chart-hex {
+    fill: var(--hex-water);
+    stroke: #6bacae;
+    stroke-width: 2px;
+    stroke-linejoin: round;
+    transition: fill 0.2s;
+}
+.chart-hex.pirate {
+    fill: var(--hex-pirate);
+}
+.chart-hex.sailor {
+    fill: var(--hex-sailor);
+}
+.chart-hex.cult {
+    fill: var(--hex-cult);
+}
+.chart-hex.water.occupied {
+    fill: #f1e1bb;
 }
 .map-action {
-    font-size: 12px;
-    fill: #d6c49b;
+    font-size: 18px;
+    fill: #315459;
+    pointer-events: none;
 }
-.map-caption {
-    font-family: Georgia, serif;
-    font-size: 10px;
-    letter-spacing: 5px;
-    fill: #8b9a8d;
+.map-start {
+    font-size: 15px;
+    fill: #315459;
+    letter-spacing: 2px;
+}
+.map-goal {
+    font-size: 17px;
+    fill: #4b3b19;
+    letter-spacing: 1px;
 }
 .ship-marker {
+    pointer-events: none;
     transition: transform 0.65s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .sea-chart figcaption {
@@ -922,9 +970,6 @@ p {
     }
     .map-action {
         font-size: 20px;
-    }
-    .map-destination {
-        font-size: 22px;
     }
     .waiting-harbor {
         min-height: 280px;
