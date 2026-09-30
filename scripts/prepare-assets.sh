@@ -7,8 +7,8 @@ convert_art() {
 }
 convert_art harbor_with_cthulhu_16-9.png harbor 1920
 convert_art harbor_with_people_16_9.png harbor-warm 1600
-convert_art cult_cards/cult_card_back_side.png secret 480
+convert_art cult_cards/cult_card_back.png secret 480
 convert_art items_cards/items_capital.png captain 160
 convert_art items_cards/items_chief_officer.png mate 160
 convert_art items_cards/items_handgun.png gun 160
-convert_art cult_cards/cult_card_front_side_infect.png ritual 480
+convert_art cult_cards/cult_card_face_infect.png ritual 480
