@@ -3,3 +3,5 @@
 *.pdf filter=lfs diff=lfs merge=binary -text
 *.png filter=lfs diff=lfs merge=binary -text
 *.zip filter=lfs diff=lfs merge=binary -text
+*.glb filter=lfs diff=lfs merge=binary -text
+*.obj filter=lfs diff=lfs merge=binary -text
