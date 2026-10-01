@@ -110,14 +110,14 @@ export function SeaChart({ view }: { view: PlayerView }) {
                 >
                     <circle
                         r="26"
-                        fill="#17383f"
-                        stroke="#e5c47f"
+                        fill="#10202c"
+                        stroke="#d5b26c"
                         strokeWidth="3"
                     />
                     <path
                         d="M-17 7H17L10 15H-10Z M0 -23V5 M-3 -19L-16 3H-3Z M4 -16L16 3H4Z"
-                        fill="#edd7a4"
-                        stroke="#edd7a4"
+                        fill="#ece3cc"
+                        stroke="#ece3cc"
                         strokeWidth="1.5"
                     />
                 </g>

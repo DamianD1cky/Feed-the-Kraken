@@ -164,7 +164,7 @@ node scripts/smoke-game.mjs 11 long
 │   ├── server/              # Colyseus 权威服务端
 │   └── shared/              # 协议类型、规则数据与运行时校验
 ├── scripts/
-│   ├── prepare-assets.sh    # 生成前端 WebP 资源
+│   ├── prepare-assets.mjs   # 生成前端 WebP 与标题字体子集
 │   └── smoke-game.mjs       # 真实 WebSocket 自动对局
 ├── pnpm-workspace.yaml
 └── package.json
@@ -215,6 +215,7 @@ pnpm build
 本仓库采用分层许可，**源码开源不代表美术资源可复用**：
 
 - 原创程序代码采用 [MIT License](LICENSE)。
+- `packages/client/public/fonts/` 中的标题字体是 Noto Serif SC 的子集，遵循 [SIL Open Font License 1.1](packages/client/public/fonts/OFL.txt)。
 - `assets/picture/`、`assets/models/`、`assets/video/` 及其在 `packages/client/public/art/` 中的运行时版本由 DamianD1cky 保留全部权利，详见[美术资源许可](assets/LICENSE.md)。
 - 美术资源仅允许为本地评估或参与本项目贡献而运行未修改副本；未经书面许可，不得提取、复用、修改、再分发、转授权、销售、公开部署、用于其他项目或产品，也不得用于数据集或机器学习系统。
 

@@ -11,6 +11,9 @@ import {
 } from "@feed/shared";
 import { appointablePlayerIds, convertiblePlayerIds, cultLeaderId } from "../engine/setup.js";
 
+/** 航海日志保留的最近公开事件条数；超出部分在视图中折叠，历史仍保留在事件流中。 */
+const PUBLIC_LOG_LIMIT = 200;
+
 export function projectView(state: GameState, viewerId: PlayerId, events: GameEvent[]): PlayerView {
   const viewer = state.players[viewerId];
   if (!viewer) throw new Error(`Unknown viewer: ${viewerId}`);
@@ -60,7 +63,7 @@ export function projectView(state: GameState, viewerId: PlayerId, events: GameEv
     players,
     ship: state.ship,
     offices: state.offices,
-    publicLog: events.slice(-24).map(toPublicLogEntry),
+    publicLog: events.slice(-PUBLIC_LOG_LIMIT).map((event) => toPublicLogEntry(event, state)),
     privatePrompt: getPrivatePrompt(state, viewerId),
     hand: privateHand(state, viewerId),
     peekCards: peekFor(state, viewerId),
@@ -300,52 +303,64 @@ function getPrivatePrompt(state: GameState, viewerId: PlayerId): PrivatePrompt |
   return undefined;
 }
 
-function toPublicLogEntry(event: GameEvent): PublicLogEntry {
-  return { seq: event.seq, at: event.at, message: publicMessage(event) };
+function toPublicLogEntry(event: GameEvent, state: GameState): PublicLogEntry {
+  return { seq: event.seq, at: event.at, message: publicMessage(event, state) };
 }
 
-function publicMessage(event: GameEvent): string {
+/** 公开日志只暴露公开信息：昵称、职位、坐标与公开结果；阵营、枪数、牌面与秘密目标始终隐藏。 */
+function publicMessage(event: GameEvent, state: GameState): string {
+  const name = (id?: PlayerId) => (id ? state.players[id]?.nickname : undefined) ?? "一位船员";
   switch (event.type) {
     case "player.joined": return `${event.nickname} 加入房间`;
-    case "session.reconnected": return "一名玩家重新连接";
-    case "session.disconnected": return "一名玩家暂时离线";
+    case "session.reconnected": return `${name(event.playerId)} 重新连接`;
+    case "session.disconnected": return `${name(event.playerId)} 暂时离线`;
     case "game.started": return "游戏开始：阵营已秘密分配，牌库与邪教仪式已就绪";
-    case "officers.assigned": return "船长任命了大副和领航员";
-    case "mutiny.committed": return "一名船员已决定是否亮枪";
+    case "officers.assigned":
+      return `船长任命 ${name(event.firstMateId)} 为大副、${name(event.navigatorId)} 为领航员`;
+    case "mutiny.committed": return `${name(event.playerId)} 已秘密握拳`;
     case "mutiny.resolved":
       return event.success
         ? `叛变成功！总枪数 ${event.totalGuns}`
         : `叛变失败（总枪数 ${event.totalGuns}），枪收回，进入航行`;
-    case "mutiny.tie_eliminated": return "一名叛变平手者被剔除";
-    case "mutiny.captain_changed": return "叛变产生了新船长";
-    case "navigation.dealt": return event.role === "captain" ? "船长抽取了 2 张航行牌" : "大副抽取了 2 张航行牌";
+    case "mutiny.tie_eliminated": return `${name(event.playerId)} 被剔除出平手名单`;
+    case "mutiny.captain_changed": return `${name(event.captainId)} 成为新船长`;
+    case "navigation.dealt":
+      return event.role === "captain"
+        ? `船长 ${name(event.holderId)} 抽取了 2 张航行牌`
+        : `大副 ${name(event.holderId)} 抽取了 2 张航行牌`;
     case "navigation.reshuffled": return "剩余牌堆与深海弃牌已重新洗匀";
-    case "navigation.kept": return event.role === "captain" ? "船长已将 1 张牌放入航海日志" : "大副已将 1 张牌放入航海日志";
+    case "navigation.kept":
+      return event.role === "captain"
+        ? `船长 ${name(event.playerId)} 已将 1 张牌放入航海日志`
+        : `大副 ${name(event.playerId)} 已将 1 张牌放入航海日志`;
     case "navigation.journal_ready": return "航海日志已交给领航员";
-    case "navigation.chosen": return "领航员选定了最终航线";
+    case "navigation.chosen": return `领航员 ${name(event.by)} 选定了最终航线`;
     case "navigation.revealed": return "船长公开了最终航行牌";
-    case "navigation.jumped": return "领航员跳船抗命！";
+    case "navigation.jumped": return `${name(event.playerId)} 跳船抗命！`;
     case "ship.moved": return `船只移动到 (${event.to.x}, ${event.to.y})`;
     case "map.triggered": return `触发地图行动：${mapActionLabel(event.action)}`;
-    case "map.cabin_search": return "船长完成了一次船舱搜查";
-    case "map.feed_kraken": return "一名船员被喂食克拉肯，已出局";
-    case "map.flogging": return `鞭笞结果：一名船员「不是${translateFaction(event.notFaction)}」`;
-    case "map.tongue": return "一名船员被割舌，不能再担任船长";
+    case "map.cabin_search": return `船长搜查了 ${name(event.targetId)} 的船舱`;
+    case "map.feed_kraken": return `${name(event.targetId)} 被喂食克拉肯，已出局`;
+    case "map.flogging": return `鞭笞 ${name(event.targetId)}：公开其「不是${translateFaction(event.notFaction)}」`;
+    case "map.tongue": return `${name(event.targetId)} 被割舌，不能再担任船长`;
     case "supply.crossed": return "船只越过补给线：手枪不足 3 把的船员已补足";
-    case "effect.drunk": return "航行牌效果：醉酒——船长职务转移";
-    case "effect.disarm": return "航行牌效果：缴械——领航员失去 1 枪";
-    case "effect.armed": return "航行牌效果：武装——领航员获得 1 枪";
-    case "effect.mermaid": return "航行牌效果：美人鱼";
-    case "effect.telescope": return "航行牌效果：望远镜";
-    case "effect.telescope_resolved": return event.discarded ? "望远镜：牌被弃入深海" : "望远镜：牌放回牌堆";
+    case "effect.drunk": return `醉酒：船长由 ${name(event.fromCaptainId)} 移交 ${name(event.toCaptainId)}`;
+    case "effect.disarm": return `缴械：${name(event.playerId)} 失去 1 把枪`;
+    case "effect.armed": return `武装：${name(event.playerId)} 获得 1 把枪`;
+    case "effect.mermaid": return "美人鱼：指定一名船员查看深海弃牌";
+    case "effect.telescope": return "望远镜：指定一名船员查看牌堆顶";
+    case "effect.telescope_resolved": return event.discarded ? "望远镜：牌被弃入深海" : "望远镜：牌放回牌堆顶";
     case "ritual.drawn": return `邪教仪式翻开：${ritualLabel(event.ritual)}`;
     case "ritual.converted": return "一名玩家被秘密皈依为邪教徒";
     case "ritual.guns": return "邪教武器库已分发 3 把手枪";
     case "ritual.cabin_shown": return "邪教领袖窥视了航行团队阵营";
     case "phase.set": return "";
-    case "offduty.set": return event.playerIds.length ? `下班轮换：${event.playerIds.length} 人下班` : "本轮无人下班";
-    case "round.advanced": return "新一轮：请船长任命领航团队";
-    case "emergency.navigator": return "紧急领航员已指定";
+    case "offduty.set":
+      return event.playerIds.length
+        ? `下班轮换：${event.playerIds.map((id) => name(id)).join("、")}`
+        : "本轮无人下班";
+    case "round.advanced": return `第 ${event.roundNo} 轮：${name(event.captainId)} 出任船长`;
+    case "emergency.navigator": return `紧急领航员：${name(event.navigatorId)}`;
     case "game.ended": return `游戏结束，胜利阵营：${translateFaction(event.winner)}`;
     case "room.closed": return `房间关闭：${event.reason}`;
   }

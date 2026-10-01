@@ -136,19 +136,23 @@
 
 ## 7. 当前前端运行时映射
 
-`scripts/prepare-assets.sh` 将源图转换为 `packages/client/public/art/` 下的 WebP：
+`scripts/prepare-assets.mjs`（`pnpm assets images`）将源图转换为 `packages/client/public/art/` 下的 WebP：
 
-| 前端键       | 运行时文件              | 源文件                                 |
-| ------------ | ----------------------- | -------------------------------------- |
-| `harbor`     | `/art/harbor.webp`      | `harbor_with_cthulhu_16-9.png`         |
-| `warmHarbor` | `/art/harbor-warm.webp` | `harbor_with_people_16_9.png`          |
-| `secret`     | `/art/secret.webp`      | `cult_cards/cult_card_back.png`        |
-| `captain`    | `/art/captain.webp`     | `items_cards/items_capital.png`        |
-| `mate`       | `/art/mate.webp`        | `items_cards/items_chief_officer.png`  |
-| `gun`        | `/art/gun.webp`         | `items_cards/items_handgun.png`        |
-| `ritual`     | `/art/ritual.webp`      | `cult_cards/cult_card_face_infect.png` |
+| 前端键                 | 运行时文件                                | 源文件                                       |
+| ---------------------- | ----------------------------------------- | -------------------------------------------- |
+| `art.harbor`           | `/art/harbor.webp`、`harbor-960.webp`     | `harbor_with_cthulhu_16-9.png`               |
+| `art.warmHarbor`       | `/art/harbor-warm.webp`、`harbor-warm-800.webp` | `harbor_with_people_16_9.png`          |
+| `art.secret`           | `/art/secret.webp`                        | `cult_cards/cult_card_back.png`              |
+| `art.captain`          | `/art/captain.webp`                       | `items_cards/items_capital.png`              |
+| `art.mate`             | `/art/mate.webp`                          | `items_cards/items_chief_officer.png`        |
+| `art.gun`              | `/art/gun.webp`                           | `items_cards/items_handgun.png`              |
+| `art.rest` / `detect` / `lash` / `knife` | `/art/{rest,detect,lash,knife}.webp` | `items_cards/items_{rest,detect,lash,knife}.png` |
+| `art.ritual`           | `/art/ritual.webp`                        | `cult_cards/cult_card_face_infect.png`       |
+| `art.cardBack`         | `/art/card-back.webp`                     | `navigation_cards/navigation_card_back.png`  |
+| `cardArt.east/west/north` | `/art/card-{east,west,north}.webp`     | `navigation_cards/navigation_card_face_location_*.png` |
+| `identityArt.sailor/pirate/cult` | `/art/id-{sailor,pirate,cult}.webp` | `id_cards/id_card_{good,bad,cult}.png` |
 
-航行牌正面、身份卡和其余状态图标尚未进入 `packages/client/src/labels.ts` 的运行时映射。
+物品图标目前用于航海指南与船员名册；领航员暂无独立美术，界面使用罗盘图标代替。
 
 ## 8. 新增卡片时的检查清单
 
@@ -156,5 +160,5 @@
 2. 文件名中的 `face` / `back` 只用于最终成品；图层必须带 `background` 或 `element`。
 3. 独立主体保留 Alpha 通道，完整卡面保持不透明。
 4. 在本文件补充「规则枚举 → 正面 → 背面」对应关系。
-5. 如需网页使用，在 `scripts/prepare-assets.sh` 和 `packages/client/src/labels.ts` 中同时补充映射。
+5. 如需网页使用，在 `scripts/prepare-assets.mjs` 和 `packages/client/src/labels.ts` 中同时补充映射。
 6. 修改规则牌数量时同步核对 `packages/shared/src/rules.ts`，不要仅复制图片文件。

@@ -1,8 +1,9 @@
-import { Client, type Room } from "@colyseus/sdk";
+import type { Room } from "@colyseus/sdk";
 import { PROTOCOL_VERSION, type ClientAction, type ClientActionEnvelope, type ServerMessage } from "@feed/shared";
 import { useAppStore } from "./store";
 
 const STORAGE_KEY = "feed-the-kraken-session";
+const INVITE_PARAM = "room";
 
 type StoredSession = Extract<ServerMessage, { type: "session.established" }>;
 
@@ -13,16 +14,49 @@ function endpoint() {
   return `${protocol}//${host}:2567`;
 }
 
+let sdk: Promise<typeof import("@colyseus/sdk")> | undefined;
+
+/** 大厅首屏不需要 SDK；用户开始输入时预热，点击登船时通常已加载完成。 */
+export function preloadConnection() {
+  sdk ??= import("@colyseus/sdk");
+  return sdk;
+}
+
+export async function createClient() {
+  const { Client } = await preloadConnection();
+  return new Client(endpoint());
+}
+
+export function inviteLink(roomId: string) {
+  const url = new URL(location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set(INVITE_PARAM, roomId);
+  return url.toString();
+}
+
+export function readInviteRoomId() {
+  return new URLSearchParams(location.search).get(INVITE_PARAM)?.trim() ?? "";
+}
+
+function clearInviteParam() {
+  const url = new URL(location.href);
+  if (!url.searchParams.has(INVITE_PARAM)) return;
+  url.searchParams.delete(INVITE_PARAM);
+  history.replaceState(history.state, "", url);
+}
+
 export async function createGameRoom(nickname: string) {
-  const client = new Client(endpoint());
+  const client = await createClient();
   const room = await client.create("kraken", { nickname });
   attachRoom(room);
   requestResync(room);
+  clearInviteParam();
   return room;
 }
 
 export async function joinGameRoom(roomId: string, nickname: string, mode: "new-player" | "reconnect" = "new-player") {
-  const client = new Client(endpoint());
+  const client = await createClient();
   const trimmedRoomId = roomId.trim();
 
   if (mode === "reconnect") {
@@ -40,12 +74,14 @@ export async function joinGameRoom(roomId: string, nickname: string, mode: "new-
     // 重连不再下发 session.established，需从本地恢复，否则无法发动作。
     useAppStore.getState().setSession(stored);
     requestResync(room);
+    clearInviteParam();
     return room;
   }
 
   const room = await client.joinById(trimmedRoomId, { nickname });
   attachRoom(room);
   requestResync(room);
+  clearInviteParam();
   return room;
 }
 

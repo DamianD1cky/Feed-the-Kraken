@@ -1,4 +1,4 @@
-import type { Direction, MapAction, NavigationEffect, Phase } from "@feed/shared";
+import type { Direction, Faction, MapAction, NavigationEffect, Phase } from "@feed/shared";
 
 export const phaseLabels: Record<Phase, string> = {
   lobby: "港口集结", officers: "任命船员", mutiny: "忠诚的拷问", mutiny_tiebreak: "叛变裁决",
@@ -22,6 +22,24 @@ export function roleLabel(value?: string) {
   return ({ sailor: "水手", pirate: "海盗", cult_leader: "邪教领袖", cultist: "邪教徒" } as Record<string, string>)[value ?? ""] ?? "尚未分配";
 }
 export const art = {
-  harbor: "/art/harbor.webp", warmHarbor: "/art/harbor-warm.webp", secret: "/art/secret.webp",
-  captain: "/art/captain.webp", mate: "/art/mate.webp", gun: "/art/gun.webp", ritual: "/art/ritual.webp",
+  harbor: "/art/harbor.webp",
+  harborSrcSet: "/art/harbor-960.webp 960w, /art/harbor.webp 1672w",
+  warmHarbor: "/art/harbor-warm.webp",
+  warmHarborSrcSet: "/art/harbor-warm-800.webp 800w, /art/harbor-warm.webp 1280w",
+  secret: "/art/secret.webp",
+  captain: "/art/captain.webp",
+  mate: "/art/mate.webp",
+  gun: "/art/gun.webp",
+  rest: "/art/rest.webp",
+  detect: "/art/detect.webp",
+  lash: "/art/lash.webp",
+  knife: "/art/knife.webp",
+  ritual: "/art/ritual.webp",
+  cardBack: "/art/card-back.webp",
+};
+export const cardArt: Record<Direction, string> = {
+  east: "/art/card-east.webp", west: "/art/card-west.webp", north: "/art/card-north.webp",
+};
+export const identityArt: Record<Faction, string> = {
+  sailor: "/art/id-sailor.webp", pirate: "/art/id-pirate.webp", cult: "/art/id-cult.webp",
 };
