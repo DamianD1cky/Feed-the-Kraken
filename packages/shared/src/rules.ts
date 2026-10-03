@@ -1,4 +1,4 @@
-import type { CultRitualKind, Faction, MapAction, NavigationCard, PlayerId, VoyageMode } from "./types.js";
+import type { CultRitualKind, Direction, Faction, MapAction, NavigationCard, PlayerId, VoyageMode } from "./types.js";
 
 export const MIN_PLAYERS = 5;
 export const MAX_PLAYERS = 11;
@@ -35,12 +35,59 @@ export function victoryDistance(mode: VoyageMode) {
   return mode === "long" ? VICTORY_DISTANCE_LONG : VICTORY_DISTANCE_QUICK;
 }
 
-export function getWinner(x: number, y: number, mode: VoyageMode = "quick") {
+export type BoardCellKind = "water" | "pirate" | "sailor" | "cult";
+export type BoardCell = { x: number; y: number };
+
+/**
+ * 海图是平顶六边形按列排布：x 为列（负数向西），y 为该列自下而上的行，起点 (0,0) 是最下方中央格。
+ * 每列最上方一格是终点：西侧海盗、东侧水手、中央克拉肯。
+ */
+function columnRows(mode: VoyageMode, x: number) {
   const distance = victoryDistance(mode);
-  if (x >= distance) return "sailor" as const;
-  if (x <= -distance) return "pirate" as const;
-  if (y >= distance) return "cult" as const;
-  return undefined;
+  const inset = Math.abs(x);
+  if (!Number.isInteger(x) || inset > distance) return undefined;
+  return { first: inset === distance ? 1 : 0, last: distance * 2 - 1 - inset };
+}
+
+export function boardCellKind(mode: VoyageMode, x: number, y: number): BoardCellKind | undefined {
+  const rows = columnRows(mode, x);
+  if (!rows || !Number.isInteger(y) || y < rows.first || y > rows.last) return undefined;
+  if (y < rows.last) return "water";
+  return x < 0 ? "pirate" : x > 0 ? "sailor" : "cult";
+}
+
+export function boardCells(mode: VoyageMode): Array<BoardCell & { kind: BoardCellKind }> {
+  const distance = victoryDistance(mode);
+  const cells: Array<BoardCell & { kind: BoardCellKind }> = [];
+  for (let x = -distance; x <= distance; x += 1) {
+    const rows = columnRows(mode, x)!;
+    for (let y = rows.first; y <= rows.last; y += 1) cells.push({ x, y, kind: boardCellKind(mode, x, y)! });
+  }
+  return cells;
+}
+
+/**
+ * 默认航线由六边形相邻关系推导，尚不是原版逐格箭头：
+ * 蓝色驶向右上格、红色驶向左上格，缺格时改为正上；
+ * 黄色驶向正上格，若正上是海盗或水手终点则斜向中线，因此只会把船推向克拉肯。
+ */
+export function nextShipCell(mode: VoyageMode, from: BoardCell, direction: Direction): BoardCell {
+  const up = { x: from.x, y: from.y + 1 };
+  const upEast = from.x >= 0 ? { x: from.x + 1, y: from.y } : { x: from.x + 1, y: from.y + 1 };
+  const upWest = from.x <= 0 ? { x: from.x - 1, y: from.y } : { x: from.x - 1, y: from.y + 1 };
+  let candidates: BoardCell[];
+  if (direction === "east") candidates = [upEast, up];
+  else if (direction === "west") candidates = [upWest, up];
+  else {
+    const kind = boardCellKind(mode, up.x, up.y);
+    candidates = kind === "pirate" || kind === "sailor" ? [from.x < 0 ? upEast : upWest] : [up];
+  }
+  return candidates.find((cell) => boardCellKind(mode, cell.x, cell.y) !== undefined) ?? from;
+}
+
+export function getWinner(x: number, y: number, mode: VoyageMode = "quick"): Faction | undefined {
+  const kind = boardCellKind(mode, x, y);
+  return kind && kind !== "water" ? kind : undefined;
 }
 
 export function crossedSupplyLine(x: number, y: number) {
@@ -49,15 +96,15 @@ export function crossedSupplyLine(x: number, y: number) {
 
 /**
  * 快速航行海图：3 船舱搜查 + 2 喂食克拉肯。
- * 胜利距离 3。
+ * 献祭格紧挨海盗与水手终点下方，搜查格分布在两侧中段。
  */
 export function createQuickMapActions(): Record<string, MapAction> {
   return {
-    "1,0": "cabin_search",
-    "-1,0": "cabin_search",
+    "-2,1": "cabin_search",
+    "-1,1": "cabin_search",
     "1,1": "cabin_search",
-    "0,1": "feed_kraken",
-    "0,2": "feed_kraken",
+    "-1,3": "feed_kraken",
+    "1,3": "feed_kraken",
   };
 }
 
@@ -153,8 +200,8 @@ export function createLongVoyageDeck(): NavigationCard[] {
     ...westDrunk(5),
     ...westMermaid(2),
     ...westTelescope(2),
-    card("west-armed-1", "武装", "west", -1, 0, "armed"),
-    card("west-armed-2", "武装", "west", -1, 0, "armed"),
+    card("west-armed-1", "武装", "west", "armed"),
+    card("west-armed-2", "武装", "west", "armed"),
     ...northCult(6),
   ];
 }
@@ -201,23 +248,23 @@ function hash01(seed: string) {
 }
 
 function eastDrunk(count: number) {
-  return Array.from({ length: count }, (_, i) => card(`east-drunk-${i + 1}`, "醉酒", "east", 1, 0, "drunk"));
+  return Array.from({ length: count }, (_, i) => card(`east-drunk-${i + 1}`, "醉酒", "east", "drunk"));
 }
 function eastDisarm(count: number) {
-  return Array.from({ length: count }, (_, i) => card(`east-disarm-${i + 1}`, "缴械", "east", 1, 0, "disarm"));
+  return Array.from({ length: count }, (_, i) => card(`east-disarm-${i + 1}`, "缴械", "east", "disarm"));
 }
 function westDrunk(count: number) {
-  return Array.from({ length: count }, (_, i) => card(`west-drunk-${i + 1}`, "醉酒", "west", -1, 0, "drunk"));
+  return Array.from({ length: count }, (_, i) => card(`west-drunk-${i + 1}`, "醉酒", "west", "drunk"));
 }
 function westMermaid(count: number) {
-  return Array.from({ length: count }, (_, i) => card(`west-mermaid-${i + 1}`, "美人鱼", "west", -1, 0, "mermaid"));
+  return Array.from({ length: count }, (_, i) => card(`west-mermaid-${i + 1}`, "美人鱼", "west", "mermaid"));
 }
 function westTelescope(count: number) {
-  return Array.from({ length: count }, (_, i) => card(`west-telescope-${i + 1}`, "望远镜", "west", -1, 0, "telescope"));
+  return Array.from({ length: count }, (_, i) => card(`west-telescope-${i + 1}`, "望远镜", "west", "telescope"));
 }
 function northCult(count: number) {
   return Array.from({ length: count }, (_, i) =>
-    card(`north-cult-${i + 1}`, "邪教起义", "north", 0, 1, "cult_uprising"),
+    card(`north-cult-${i + 1}`, "邪教起义", "north", "cult_uprising"),
   );
 }
 
@@ -225,11 +272,9 @@ function card(
   id: string,
   label: string,
   direction: NavigationCard["direction"],
-  dx: number,
-  dy: number,
   effect: NavigationCard["effect"],
 ): NavigationCard {
-  return { id, label, direction, dx, dy, effect };
+  return { id, label, direction, effect };
 }
 
 export type { PlayerId };

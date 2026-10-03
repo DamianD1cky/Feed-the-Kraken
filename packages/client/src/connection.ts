@@ -4,6 +4,9 @@ import { useAppStore } from "./store";
 
 const STORAGE_KEY = "feed-the-kraken-session";
 const INVITE_PARAM = "room";
+/** 测试模式：一键开多个真实玩家窗口时，落地页据此自动加入房间。 */
+export const TESTJOIN_PARAM = "testjoin";
+export const TESTJOIN_NICK_PARAM = "nick";
 
 type StoredSession = Extract<ServerMessage, { type: "session.established" }>;
 
@@ -41,8 +44,14 @@ export function readInviteRoomId() {
 
 function clearInviteParam() {
   const url = new URL(location.href);
-  if (!url.searchParams.has(INVITE_PARAM)) return;
-  url.searchParams.delete(INVITE_PARAM);
+  let changed = false;
+  for (const param of [INVITE_PARAM, TESTJOIN_PARAM, TESTJOIN_NICK_PARAM]) {
+    if (url.searchParams.has(param)) {
+      url.searchParams.delete(param);
+      changed = true;
+    }
+  }
+  if (!changed) return;
   history.replaceState(history.state, "", url);
 }
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MIN_PLAYERS, type PlayerView } from "@feed/shared";
 import { ArrowCounterClockwise, Flask } from "@phosphor-icons/react";
 import { testModeEnabled } from "../testMode";
+import { openTestPlayerTabs } from "../testPlayers";
 import { inviteLink, joinGameRoom } from "../connection";
 import { useAppStore } from "../store";
 import { art, cardArt, directionLabels, effectLabels, phaseLabels } from "../labels";
@@ -115,11 +116,15 @@ function WaitingCenter({ view }: { view: PlayerView }) {
 
 function TestFillButton({ view, missing }: { view: PlayerView; missing: number }) {
     const [busy, setBusy] = useState(false);
-    async function fill() {
+    function fill() {
         setBusy(true);
         try {
-            const { fillWithTestBots } = await import("../testBots");
-            await fillWithTestBots(view.roomId, view.players.length);
+            const opened = openTestPlayerTabs(view.roomId, missing);
+            if (opened < missing) {
+                useAppStore
+                    .getState()
+                    .setError(`只成功打开了 ${opened}/${missing} 个测试窗口。若浏览器拦截了弹窗，请点击地址栏的弹窗拦截图标并选择「始终允许此网站的弹出式窗口」，然后重试。`);
+            }
         } catch (error) {
             useAppStore.getState().setError(error instanceof Error ? error.message : "无法加入测试船员");
         } finally {
@@ -127,9 +132,9 @@ function TestFillButton({ view, missing }: { view: PlayerView; missing: number }
         }
     }
     return (
-        <button className="quiet test-button" disabled={busy} onClick={() => void fill()}>
+        <button className="quiet test-button" disabled={busy} onClick={fill}>
             <Flask size={16} aria-hidden="true" />
-            {busy ? "正在加入" : `补齐 ${missing} 位测试船员`}
+            {busy ? "正在打开" : `打开 ${missing} 个测试窗口`}
         </button>
     );
 }

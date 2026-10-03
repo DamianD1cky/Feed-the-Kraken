@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowCounterClockwise, ArrowRight, Flask } from "@phosphor-icons/react";
+import { MIN_PLAYERS } from "@feed/shared";
 import { createGameRoom, joinGameRoom, preloadConnection, readInviteRoomId } from "../connection";
 import { useAppStore } from "../store";
 import { art } from "../labels";
 import { testModeEnabled } from "../testMode";
+import { launchTestGame, readTestJoinIntent, waitForLaunchRoom } from "../testPlayers";
 
 type Mode = "create" | "join";
 
@@ -14,12 +16,33 @@ export function Lobby() {
     const [mode, setMode] = useState<Mode>(inviteRoomId ? "join" : "create");
     const [busy, setBusy] = useState(false);
     const [artReady, setArtReady] = useState(false);
+    const [testJoin] = useState(readTestJoinIntent);
+    const testJoinedRef = useRef(false);
     const error = useAppStore((state) => state.error);
     const joining = mode === "join";
 
     useEffect(() => {
         if (error) setBusy(false);
     }, [error]);
+
+    // 测试模式：从「一键 5 人局」打开的标签页带有 testjoin 参数，落地即等待房间号并自动加入。
+    useEffect(() => {
+        if (!testJoin || testJoinedRef.current) return;
+        testJoinedRef.current = true;
+        setNickname(testJoin.nickname);
+        setMode("join");
+        setBusy(true);
+        void (async () => {
+            try {
+                const roomId = await waitForLaunchRoom(testJoin.token);
+                await joinGameRoom(roomId, testJoin.nickname);
+            } catch (joinError) {
+                useAppStore.getState().setError(joinError instanceof Error ? joinError.message : "无法加入房间");
+                setBusy(false);
+            }
+        })();
+    }, [testJoin]);
+
     const canSubmit = !busy && nickname.trim() !== "" && (!joining || roomId.trim() !== "");
 
     async function embark(reconnect = false) {
@@ -38,9 +61,21 @@ export function Lobby() {
         setBusy(true);
         useAppStore.getState().setError(undefined);
         try {
-            const room = await createGameRoom(nickname.trim() || "测试船长");
-            const { fillWithTestBots } = await import("../testBots");
-            await fillWithTestBots(room.roomId, 1);
+            // 本窗口是 1 号玩家；先同步打开 4 个真实网页（落在用户手势内，避免被弹窗拦截），
+            // 再创建房间并公布房间号，让这些网页自动加入，凑满 5 人真机局。
+            const extra = MIN_PLAYERS - 1;
+            const { opened, expected } = await launchTestGame(
+                async () => {
+                    const room = await createGameRoom(nickname.trim() || "测试船长");
+                    return room.roomId;
+                },
+                extra,
+            );
+            if (opened < expected) {
+                useAppStore
+                    .getState()
+                    .setError(`只成功打开了 ${opened}/${expected} 个测试窗口。若浏览器拦截了弹窗，请点击地址栏的弹窗拦截图标并选择「始终允许此网站的弹出式窗口」，然后重试。`);
+            }
         } catch (error) {
             useAppStore.getState().setError(error instanceof Error ? error.message : "无法创建测试房间");
             setBusy(false);
@@ -156,7 +191,7 @@ export function Lobby() {
                                 onClick={() => void startTestVoyage()}
                             >
                                 <Flask size={16} aria-hidden="true" />
-                                测试模式：一键 5 人局
+                                测试模式：一键 5 人局（开 4 个新网页）
                             </button>
                         )}
                     </form>

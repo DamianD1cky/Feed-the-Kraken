@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Client, Room } from "colyseus";
+import { Client, ErrorCode, Room, ServerError } from "colyseus";
 import { Schema } from "@colyseus/schema";
 import {
     cellKey,
@@ -9,12 +9,14 @@ import {
     MAX_PLAYERS,
     MIN_PLAYERS,
     mutinyThreshold,
+    nextShipCell,
     pickFloggingReveal,
     PROTOCOL_VERSION,
     RESHUFFLE_DECK_THRESHOLD,
     shuffle,
     type ClientActionEnvelope,
     type CultRitualKind,
+    type Direction,
     type GameEvent,
     type GameState,
     type PlayerId,
@@ -59,15 +61,6 @@ type ProcessedAction = {
     reason?: string;
 };
 
-const DEFAULT_ROOM_IDLE_TTL_MS = 24 * 60 * 60 * 1000;
-
-function roomIdleTtlMs() {
-    const configured = Number(process.env.ROOM_IDLE_TTL_MS);
-    return Number.isFinite(configured) && configured > 0 ?
-            configured
-        :   DEFAULT_ROOM_IDLE_TTL_MS;
-}
-
 class EmptyRoomState extends Schema {}
 type PendingGameEvent =
     GameEvent extends infer E ?
@@ -85,14 +78,13 @@ export class KrakenRoom extends Room {
     private readonly processedActions = new Map<string, ProcessedAction>();
     /** 同一客户端动作可产生多个领域事件，仅首个事件携带幂等键入库。 */
     private readonly persistedActionKeys = new Set<string>();
-    private idleDisposalTimer?: ReturnType<typeof setTimeout>;
     private eventStore?: EventStore;
 
     onCreate() {
         // 预留一个换连接槽；业务座位仍限制 11 人，避免满房时重连被匹配器先拒绝。
         this.maxClients = MAX_PLAYERS + 1;
-        // 游客关闭页面后仍可凭持久令牌回来；空房超过 TTL 后再释放。
-        this.autoDispose = false;
+        // 空房即解散：最后一名玩家离开后由 Colyseus 立即释放房间，之后无法再加入。
+        this.autoDispose = true;
         this.game = createLobbyState(this.roomId);
         this.setState(new EmptyRoomState());
         this.onMessage("action", (client, payload) =>
@@ -105,7 +97,6 @@ export class KrakenRoom extends Room {
     onJoin(client: Client, options: JoinOptions) {
         const reconnectPlayerId = this.resolveReconnect(options);
         if (reconnectPlayerId) {
-            this.cancelIdleDisposal();
             // 先撤销旧连接授权，再关闭，防止旧连接的 onLeave 把新连接标为离线。
             for (const oldClient of this.clients) {
                 if (
@@ -157,8 +148,13 @@ export class KrakenRoom extends Room {
             return;
         }
         const nickname = normalizeNickname(options.nickname);
+        if (this.isNicknameTaken(nickname)) {
+            throw new ServerError(
+                ErrorCode.MATCHMAKE_UNHANDLED,
+                "这个名字已被其他船员使用，请换一个名字。",
+            );
+        }
         const playerId = randomUUID();
-        this.cancelIdleDisposal();
         this.clientToPlayer.set(client.sessionId, playerId);
         this.appendAndApply({ type: "player.joined", playerId, nickname });
         this.debug("player.joined", { playerId, nickname });
@@ -176,14 +172,6 @@ export class KrakenRoom extends Room {
         });
         this.debug("player.disconnected", { playerId, phase: this.game.phase });
         this.broadcastViews();
-        const hasRemainingClient = this.clients.some(
-            (connectedClient) => connectedClient.sessionId !== client.sessionId,
-        );
-        if (!hasRemainingClient) this.scheduleIdleDisposal();
-    }
-
-    onDispose() {
-        this.cancelIdleDisposal();
     }
 
     private resolveReconnect(options: JoinOptions) {
@@ -573,7 +561,7 @@ export class KrakenRoom extends Room {
                 },
                 envelope,
             );
-            this.resolveChosenCard(kept.id, kept.dx, kept.dy, envelope);
+            this.resolveChosenCard(kept.id, kept.direction, envelope);
             return;
         }
         throw new Error("当前阶段不能选牌。");
@@ -581,12 +569,11 @@ export class KrakenRoom extends Room {
 
     private resolveChosenCard(
         cardId: string,
-        dx: number,
-        dy: number,
+        direction: Direction,
         envelope?: ClientActionEnvelope,
     ) {
         this.appendAndApply({ type: "navigation.revealed", cardId }, envelope);
-        const to = { x: this.game.ship.x + dx, y: this.game.ship.y + dy };
+        const to = nextShipCell(this.game.voyageMode, this.game.ship, direction);
         this.appendAndApply({ type: "ship.moved", cardId, to }, envelope);
         if (this.game.phase === "ended") {
             if (this.game.winner) {
@@ -1097,7 +1084,7 @@ export class KrakenRoom extends Room {
                 },
                 envelope,
             );
-            this.resolveChosenCard(card.id, card.dx, card.dy, envelope);
+            this.resolveChosenCard(card.id, card.direction, envelope);
         }
     }
 
@@ -1205,24 +1192,12 @@ export class KrakenRoom extends Room {
         });
     }
 
-    private scheduleIdleDisposal() {
-        this.cancelIdleDisposal();
-        const ttlMs = roomIdleTtlMs();
-        this.debug("room.idle_timer_started", { ttlMs });
-        this.idleDisposalTimer = setTimeout(() => {
-            this.idleDisposalTimer = undefined;
-            if (this.clients.length > 0) return;
-            this.debug("room.idle_expired", { ttlMs });
-            this.appendAndApply({ type: "room.closed", reason: "timeout" });
-            void this.disconnect();
-        }, ttlMs);
-    }
-
-    private cancelIdleDisposal() {
-        if (!this.idleDisposalTimer) return;
-        clearTimeout(this.idleDisposalTimer);
-        this.idleDisposalTimer = undefined;
-        this.debug("room.idle_timer_cancelled");
+    private isNicknameTaken(nickname: string) {
+        const normalized = nickname.trim().toLowerCase();
+        return this.game.seats.some((playerId) => {
+            const player = this.game.players[playerId];
+            return Boolean(player) && player.nickname.trim().toLowerCase() === normalized;
+        });
     }
 
     private debug(message: string, details?: Record<string, unknown>) {

@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html, body { margin: 0; background: transparent; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/node_modules/three/build/three.module.js",
+          "three/addons/": "/node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <script type="module">
+      import * as THREE from "three";
+      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+      import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+      const params = new URLSearchParams(location.search);
+      const number = (key, fallback) => Number(params.get(key) ?? fallback);
+      const size = number("size", 768);
+      const degrees = THREE.MathUtils.degToRad;
+
+      try {
+        const canvas = document.getElementById("stage");
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+        renderer.setPixelRatio(1);
+        renderer.setSize(size, size);
+        renderer.setClearColor(0x000000, 0);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = number("exposure", 1);
+
+        const scene = new THREE.Scene();
+        scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+        const key = new THREE.DirectionalLight(0xfff0d4, 1.8);
+        key.position.set(3, 5, 4);
+        const rim = new THREE.DirectionalLight(0x9fc6ff, 0.8);
+        rim.position.set(-4, 2, -3);
+        scene.add(key, rim);
+
+        const { scene: model } = await new GLTFLoader().loadAsync(params.get("model"));
+        model.rotation.set(degrees(number("tilt", 0)), degrees(number("yaw", 0)), degrees(number("roll", 0)));
+        scene.add(model);
+        const sphere = new THREE.Box3().setFromObject(model).getBoundingSphere(new THREE.Sphere());
+        model.position.sub(sphere.center);
+
+        const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 1000);
+        const pitch = degrees(number("pitch", 20));
+        const distance = (sphere.radius / Math.sin(degrees(15))) * 1.02;
+        camera.position.set(0, Math.sin(pitch) * distance, Math.cos(pitch) * distance);
+        camera.lookAt(0, 0, 0);
+        renderer.render(scene, camera);
+        window.__result = canvas.toDataURL("image/png");
+      } catch (error) {
+        window.__error = String(error?.stack ?? error);
+      }
+    </script>
+  </body>
+</html>

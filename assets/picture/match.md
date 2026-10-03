@@ -151,6 +151,10 @@
 | `art.cardBack`         | `/art/card-back.webp`                     | `navigation_cards/navigation_card_back.png`  |
 | `cardArt.east/west/north` | `/art/card-{east,west,north}.webp`     | `navigation_cards/navigation_card_face_location_*.png` |
 | `identityArt.sailor/pirate/cult` | `/art/id-{sailor,pirate,cult}.webp` | `id_cards/id_card_{good,bad,cult}.png` |
+| `modelArt.ship`        | `/art/model-ship.webp`                    | `models/item_ship_fanon`（`pnpm render-models` 渲染） |
+| `modelArt.tentacleFeed` | `/art/model-tentacle-feed.webp`          | `models/kraken_tentacle_three`，献祭格  |
+| `modelArt.tentacleGoal` | `/art/model-tentacle-goal.webp`          | `models/kraken_tentacle_five`，克拉肯终点 |
+| `modelArt.magnifier`   | `/art/model-magnifier.webp`               | `models/item_detect`，搜查格            |
 
 物品图标目前用于航海指南与船员名册；领航员暂无独立美术，界面使用罗盘图标代替。
 

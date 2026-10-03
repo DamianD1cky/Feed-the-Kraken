@@ -324,6 +324,39 @@ input::placeholder {
     gap: 4px;
 }
 
+/* Site footer */
+.site-footer {
+    position: fixed;
+    z-index: 6;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 1px solid var(--line);
+    background: rgb(8 18 26 / 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+.site-footer a {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--parchment-3);
+    text-decoration: none;
+    transition: color 0.2s var(--ease);
+}
+.site-footer a:hover {
+    color: var(--gold);
+}
+.site-footer svg {
+    color: var(--gold);
+}
+
 /* Toast */
 .toast {
     position: fixed;
@@ -1017,9 +1050,9 @@ button.test-button:hover:not(:disabled) {
 .sea-chart {
     margin: 0;
     --hex-water: #e6dabd;
-    --hex-pirate: var(--pirate);
-    --hex-sailor: var(--sailor);
-    --hex-cult: var(--cult);
+    --hex-pirate: #a9472f;
+    --hex-sailor: #4f88a8;
+    --hex-cult: #d9ac45;
 }
 .sea-chart svg {
     display: block;
@@ -1055,49 +1088,101 @@ button.test-button:hover:not(:disabled) {
 .chart-legend .cult {
     background: var(--hex-cult);
 }
+/* Board: ink frame with a gold rule, engraved textures kept faint so outlines and labels stay legible. */
 .chart-frame {
-    fill: #132433;
-    stroke: #132433;
-    stroke-width: 28px;
+    fill: #10202c;
+    stroke: #10202c;
+    stroke-width: 30px;
     stroke-linejoin: round;
+}
+.chart-frame-line {
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 1.5px;
+    stroke-linejoin: round;
+    opacity: 0.55;
 }
 .chart-hex {
     fill: var(--hex-water);
-    stroke: #8b7a55;
-    stroke-width: 2px;
-    stroke-linejoin: round;
     transition: fill 0.3s var(--ease);
 }
-.chart-hex.pirate {
-    fill: var(--hex-pirate);
+.chart-cell.pirate .chart-hex {
+    fill: #a9472f;
 }
-.chart-hex.sailor {
-    fill: var(--hex-sailor);
+.chart-cell.sailor .chart-hex {
+    fill: #4f88a8;
 }
-.chart-hex.cult {
-    fill: var(--hex-cult);
+.chart-cell.water.occupied .chart-hex {
+    fill: #f6e5b4;
 }
-.chart-hex.water.occupied {
-    fill: #f7e6b5;
-}
-.map-action {
-    font-size: 18px;
-    fill: #34474e;
+.chart-texture {
     pointer-events: none;
 }
-.map-start {
-    font-size: 15px;
-    fill: #45585c;
-    letter-spacing: 2px;
+.chart-waves {
+    fill: none;
+    stroke: rgb(110 88 48 / 0.2);
+    stroke-width: 1.2px;
 }
-.map-goal {
-    font-size: 17px;
-    fill: #3d2f12;
+.chart-hatch {
+    stroke: rgb(40 8 4 / 0.28);
+    stroke-width: 2.4px;
+}
+.chart-swell {
+    fill: none;
+    stroke: rgb(236 244 248 / 0.22);
+    stroke-width: 1.4px;
+}
+.chart-emblem {
+    opacity: 0.34;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+}
+.chart-cell.sailor .chart-emblem {
+    opacity: 0.4;
+}
+.chart-outline {
+    fill: none;
+    stroke: #2a2416;
+    stroke-width: 2.4px;
+    stroke-linejoin: round;
+}
+.chart-cell.occupied .chart-outline {
+    stroke: var(--gold);
+    stroke-width: 4px;
+}
+.chart-model {
+    pointer-events: none;
+}
+.chart-model.is-sway {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: sway 4.5s ease-in-out infinite alternate;
+}
+.chart-label {
+    font-size: 14px;
+    font-weight: 600;
     letter-spacing: 1px;
+    fill: #2a2016;
+    stroke: #f3e7c8;
+    stroke-width: 3.5px;
+    paint-order: stroke;
+    pointer-events: none;
+}
+.chart-label.is-start {
+    fill: #45585c;
+    stroke: none;
 }
 .ship-marker {
     pointer-events: none;
     transition: transform 0.7s var(--ease);
+}
+.ship-sprite {
+    transform-box: fill-box;
+    transform-origin: 50% 80%;
+    animation: bob 3.2s ease-in-out infinite alternate;
+}
+.ship-wake {
+    fill: rgb(16 32 44 / 0.28);
 }
 .sea-chart figcaption {
     display: flex;
@@ -1804,6 +1889,22 @@ body:has(.rulebook[open]) .waiting-hero img {
     to {
         opacity: 1;
         transform: none;
+    }
+}
+@keyframes sway {
+    from {
+        transform: rotate(-2.5deg);
+    }
+    to {
+        transform: rotate(2.5deg);
+    }
+}
+@keyframes bob {
+    from {
+        transform: translateY(1px) rotate(-1deg);
+    }
+    to {
+        transform: translateY(-3px) rotate(1deg);
     }
 }
 @keyframes drift {

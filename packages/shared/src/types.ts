@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 export type VoyageMode = "quick" | "long";
 
@@ -41,8 +41,6 @@ export type NavigationCard = {
   id: CardId;
   label: string;
   direction: Direction;
-  dx: number;
-  dy: number;
   effect: NavigationEffect;
 };
 

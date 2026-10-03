@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Anchor, BookOpenText, SignOut, X } from "@phosphor-icons/react";
+import { Anchor, BookOpenText, GithubLogo, SignOut, X } from "@phosphor-icons/react";
 import { useAppStore } from "./store";
 import { leaveGameRoom } from "./connection";
 import { Lobby } from "./scenes/Lobby";
@@ -40,6 +40,12 @@ export function App() {
         </div>
       )}
       {view ? <RoomView view={view} /> : <Lobby />}
+      <footer className="site-footer">
+        <a href="https://github.com/DamianDicky" target="_blank" rel="noreferrer">
+          <GithubLogo size={15} weight="light" aria-hidden="true" />
+          made by DamianDicky
+        </a>
+      </footer>
       {rulesOpen && <Rulebook onClose={() => setRulesOpen(false)} />}
     </main>
   );

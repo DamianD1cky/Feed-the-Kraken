@@ -24,8 +24,8 @@ test("projectView only sends navigation cards to the active officer", () => {
   state.phase = "navigator_nav";
   state.offices.navigatorId = "sailor-1";
   state.hands.journal = [
-    { id: "north-1", label: "邪教起义", direction: "north", dx: 0, dy: 1, effect: "cult_uprising" },
-    { id: "east-1", label: "醉酒", direction: "east", dx: 1, dy: 0, effect: "drunk" },
+    { id: "north-1", label: "邪教起义", direction: "north", effect: "cult_uprising" },
+    { id: "east-1", label: "醉酒", direction: "east", effect: "drunk" },
   ];
 
   const navigatorView = projectView(state, "sailor-1", []);

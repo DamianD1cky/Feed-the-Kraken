@@ -37,6 +37,13 @@ export const art = {
   ritual: "/art/ritual.webp",
   cardBack: "/art/card-back.webp",
 };
+/** 由 GLB 模型离线渲染的海图标记，见 scripts/render-models.mjs。 */
+export const modelArt = {
+  ship: "/art/model-ship.webp",
+  tentacleFeed: "/art/model-tentacle-feed.webp",
+  tentacleGoal: "/art/model-tentacle-goal.webp",
+  magnifier: "/art/model-magnifier.webp",
+};
 export const cardArt: Record<Direction, string> = {
   east: "/art/card-east.webp", west: "/art/card-west.webp", north: "/art/card-north.webp",
 };

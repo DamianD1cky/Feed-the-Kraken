@@ -18,11 +18,38 @@ type RoomHarness = {
   eventStore: EventStore;
   appendAndApply(event: unknown, envelope?: ClientActionEnvelope): void;
   maybeResolveMutiny(envelope?: ClientActionEnvelope): void;
+  isNicknameTaken(nickname: string): boolean;
 };
 
 function asHarness(room: KrakenRoom) {
   return room as unknown as RoomHarness;
 }
+
+test("duplicate nicknames are rejected case-insensitively", () => {
+  const state = createLobbyState("room-nickname");
+  reduceGameEvent(state, {
+    type: "player.joined",
+    seq: 1,
+    playerId: "p1",
+    nickname: "阿沅",
+    at: 1,
+  });
+  reduceGameEvent(state, {
+    type: "player.joined",
+    seq: 2,
+    playerId: "p2",
+    nickname: "Mira",
+    at: 2,
+  });
+
+  const room = asHarness(new KrakenRoom());
+  room.game = state;
+
+  assert.equal(room.isNicknameTaken("阿沅"), true);
+  assert.equal(room.isNicknameTaken(" 阿沅 "), true);
+  assert.equal(room.isNicknameTaken("mira"), true);
+  assert.equal(room.isNicknameTaken("老周"), false);
+});
 
 test("only the first event derived from an action persists its idempotency key", () => {
   const room = asHarness(new KrakenRoom());

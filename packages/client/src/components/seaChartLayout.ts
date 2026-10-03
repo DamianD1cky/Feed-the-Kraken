@@ -1,50 +1,40 @@
-import { victoryDistance, type VoyageMode } from "@feed/shared";
+import { boardCells, victoryDistance, type BoardCellKind, type VoyageMode } from "@feed/shared";
 
 type Point = { x: number; y: number };
-type HexKind = "water" | "pirate" | "sailor" | "cult";
 
 export type ChartCell = Point & {
   key: string;
   column: number;
   row: number;
-  kind: HexKind;
+  kind: BoardCellKind;
   vertices: Point[];
 };
 
-const RADIUS = 56;
-const ROW_HEIGHT = Math.sqrt(3) * RADIUS;
-const PADDING = 32;
+export const HEX_RADIUS = 56;
+const ROW_HEIGHT = Math.sqrt(3) * HEX_RADIUS;
+const PADDING = 40;
 
-/** 参考图的平顶六边形：中央六格，两侧依次五、四、两格。 */
+/** 把共享规则里的棋盘格换算成平顶六边形的像素位置；规则与画面共用同一份格子定义。 */
 export function createSeaChartLayout(mode: VoyageMode) {
   const distance = victoryDistance(mode);
   const depth = distance * 2 - 1;
-  const centerX = (distance * 1.5 + 1) * RADIUS + PADDING;
-  const startY = RADIUS + PADDING + depth * ROW_HEIGHT;
-  const cells: ChartCell[] = [];
-
-  for (let column = -distance; column <= distance; column++) {
-    const inset = Math.abs(column);
-    // 最外侧下方收一格，形成参考图的收拢轮廓；底端仅留中央起点。
-    const firstRow = inset === distance ? 1 : 0;
-    const lastRow = depth - inset;
-    for (let row = firstRow; row <= lastRow; row++) {
-      const x = centerX + column * RADIUS * 1.5;
-      const y = startY - (row + inset / 2) * ROW_HEIGHT;
-      const kind: HexKind = row !== lastRow ? "water" : column < 0 ? "pirate" : column > 0 ? "sailor" : "cult";
-      cells.push({
-        key: `${column}:${row}`,
-        column, row, kind, x, y,
-        vertices: Array.from({ length: 6 }, (_, vertex) => {
-          const angle = vertex * Math.PI / 3;
-          return { x: x + RADIUS * Math.cos(angle), y: y + RADIUS * Math.sin(angle) };
-        }),
-      });
-    }
-  }
+  const centerX = (distance * 1.5 + 1) * HEX_RADIUS + PADDING;
+  const startY = HEX_RADIUS + PADDING + depth * ROW_HEIGHT;
+  const cells: ChartCell[] = boardCells(mode).map(({ x: column, y: row, kind }) => {
+    const x = centerX + column * HEX_RADIUS * 1.5;
+    const y = startY - (row + Math.abs(column) / 2) * ROW_HEIGHT;
+    return {
+      key: `${column},${row}`,
+      column, row, kind, x, y,
+      vertices: Array.from({ length: 6 }, (_, vertex) => {
+        const angle = vertex * Math.PI / 3;
+        return { x: x + HEX_RADIUS * Math.cos(angle), y: y + HEX_RADIUS * Math.sin(angle) };
+      }),
+    };
+  });
 
   return {
-    distance, depth, cells,
+    cells,
     width: centerX * 2,
     height: startY + ROW_HEIGHT / 2 + PADDING,
     frame: convexHull(cells.flatMap((cell) => cell.vertices)),
@@ -53,22 +43,8 @@ export function createSeaChartLayout(mode: VoyageMode) {
 
 export type SeaChartLayout = ReturnType<typeof createSeaChartLayout>;
 
-/**
- * 现有简化坐标在水域中逐一对应格子，(0,0) 固定为最下方中央格。
- * 终点映射到对应颜色的上缘；这里仅负责显示，不改变服务端航行规则。
- */
 export function findChartCell(layout: SeaChartLayout, x: number, y: number): ChartCell {
-  const { distance, depth } = layout;
-  let column = x;
-  let row = y;
-  if (Math.abs(x) >= distance) {
-    column = Math.sign(x) * (distance - Math.min(y, distance - 1));
-    row = depth - Math.abs(column);
-  } else if (y >= distance) {
-    column = 0;
-    row = depth;
-  }
-  const cell = layout.cells.find((item) => item.column === column && item.row === row);
+  const cell = layout.cells.find((item) => item.column === x && item.row === y);
   if (!cell) throw new Error(`海图不存在坐标 (${x}, ${y})`);
   return cell;
 }
