@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>海图桌 · 风格样张</title>
+        <link rel="stylesheet" href="./tokens.css" />
+        <link rel="stylesheet" href="./components.css" />
+        <style>
+            body {
+                min-height: 100vh;
+            }
+            .tile {
+                max-width: 1240px;
+                margin: 0 auto;
+                padding: 48px 40px 80px;
+            }
+            .tile > header h1 {
+                margin: 0 0 6px;
+                font-size: 34px;
+                letter-spacing: 0.16em;
+            }
+            .tile > header p {
+                margin: 0;
+                max-width: 760px;
+                color: var(--text-on-wood-dim);
+                line-height: 1.8;
+            }
+            .tile section {
+                margin-top: 44px;
+            }
+            .tile h2 {
+                margin: 0 0 16px;
+                font-size: 13px;
+                font-weight: 500;
+                letter-spacing: 0.3em;
+                color: var(--brass-200);
+            }
+            .tile h2 small {
+                margin-left: 12px;
+                font-family: var(--font-plaque);
+                font-size: 10px;
+                letter-spacing: 0.24em;
+                color: var(--text-on-wood-dim);
+            }
+            .grid {
+                display: grid;
+                gap: 18px;
+            }
+            .swatch-group {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 22px;
+            }
+            .swatch-group h3,
+            .spec h3,
+            .material h3,
+            .comp h3 {
+                margin: 0 0 10px;
+                font-size: 12px;
+                font-weight: 500;
+                letter-spacing: 0.14em;
+                color: var(--text-on-wood-dim);
+            }
+            .swatches {
+                display: flex;
+                gap: 8px;
+            }
+            .swatches figure {
+                margin: 0;
+                flex: 1;
+            }
+            .swatches div {
+                height: 64px;
+                border-radius: 6px;
+                box-shadow:
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+                    0 6px 14px rgba(0, 0, 0, 0.4);
+            }
+            .swatches figcaption {
+                margin-top: 6px;
+                font-size: 11px;
+                line-height: 1.4;
+                color: var(--text-on-wood);
+            }
+            .swatches figcaption code {
+                display: block;
+                font-family: var(--font-latin);
+                color: var(--text-on-wood-dim);
+            }
+            .specs {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .spec {
+                padding: 20px 22px;
+                border-radius: 8px;
+            }
+            .spec .sample {
+                margin: 4px 0 10px;
+                line-height: 1.35;
+            }
+            .spec p {
+                margin: 0;
+                font-size: 12px;
+                line-height: 1.7;
+            }
+            .on-paper h3,
+            .on-paper p {
+                color: var(--ink-500);
+            }
+            .on-wood {
+                background: rgba(0, 0, 0, 0.25);
+                border: 1px solid rgba(236, 212, 147, 0.12);
+            }
+            .on-wood p {
+                color: var(--text-on-wood-dim);
+            }
+            .materials {
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+            }
+            .material .swatch {
+                height: 120px;
+                border-radius: 8px;
+                display: grid;
+                place-items: center;
+                overflow: hidden;
+                box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5);
+            }
+            .material p {
+                margin: 8px 0 0;
+                font-size: 11px;
+                line-height: 1.6;
+                color: var(--text-on-wood-dim);
+            }
+            .comps {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            .comp {
+                padding: 20px;
+                border-radius: 10px;
+                background: rgba(0, 0, 0, 0.22);
+                border: 1px solid rgba(236, 212, 147, 0.1);
+            }
+            .comp .demo {
+                position: relative;
+                min-height: 150px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 18px;
+                flex-wrap: wrap;
+            }
+            .comp p {
+                margin: 12px 0 0;
+                font-size: 12px;
+                line-height: 1.7;
+                color: var(--text-on-wood-dim);
+            }
+            .seat-demo {
+                position: relative;
+                width: 70px;
+                height: 120px;
+            }
+            .seat-demo .seat {
+                left: 35px;
+                top: 34px;
+            }
+            .seat-demo .tag[data-side="bottom"] {
+                top: 36px;
+            }
+            .motion {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px 28px;
+            }
+            .motion div {
+                display: grid;
+                grid-template-columns: 120px minmax(0, 1fr);
+                gap: 12px;
+                padding: 10px 0;
+                border-bottom: 1px solid rgba(236, 212, 147, 0.1);
+                font-size: 13px;
+                line-height: 1.6;
+            }
+            .motion b {
+                color: var(--brass-200);
+                font-weight: 500;
+            }
+            .motion span {
+                color: var(--text-on-wood-dim);
+            }
+        </style>
+    </head>
+    <body class="wood">
+        <main class="tile">
+            <header>
+                <span class="eyebrow">STYLE TILE · THE CHART TABLE</span>
+                <h1>海图桌 · 风格样张</h1>
+                <p>
+                    一切都是桌上的实物：深色木桌托着亮色纸面，黄铜负责结构与「轮到谁」，蜡与朱印负责秘密与权威，墨负责记录。版画卡牌是这套系统的源头，其余元素都向它靠拢。
+                </p>
+            </header>
+
+            <section>
+                <h2>色板<small>PALETTE</small></h2>
+                <div class="swatch-group" id="swatches"></div>
+            </section>
+
+            <section>
+                <h2>字体<small>TYPE</small></h2>
+                <div class="grid specs">
+                    <div class="spec parchment on-paper">
+                        <h3 class="ink">印刷体 · 标题与说明</h3>
+                        <div
+                            class="sample ink"
+                            style="
+                                font-family: var(--font-print);
+                                font-size: 30px;
+                                font-weight: 700;
+                                letter-spacing: 0.14em;
+                            "
+                        >
+                            航海日志 · 领航抉择
+                        </div>
+                        <p>
+                            预览：Songti SC。正式：思源宋体（Noto Serif
+                            SC）Heavy / SemiBold，按游戏用字做子集。
+                        </p>
+                    </div>
+                    <div class="spec parchment on-paper">
+                        <h3 class="ink">手写体 · 名签、日志条目、海图注记</h3>
+                        <div
+                            class="sample ink"
+                            style="
+                                font-family: var(--font-hand);
+                                font-size: 28px;
+                            "
+                        >
+                            船长 铁锚 抽了 2 张航行牌
+                        </div>
+                        <p>
+                            预览：Kaiti SC。正式：霞鹜文楷（LXGW
+                            WenKai，OFL），同样做子集。
+                        </p>
+                    </div>
+                    <div class="spec on-wood">
+                        <h3>铭牌体 · 黄铜铭牌与标签</h3>
+                        <div
+                            class="sample"
+                            style="
+                                font-family: var(--font-plaque);
+                                font-size: 22px;
+                                letter-spacing: 0.24em;
+                                color: var(--brass-200);
+                            "
+                        >
+                            ROUND III · THE NAVIGATOR
+                        </div>
+                        <p>
+                            预览：Copperplate。正式：Cinzel 或 Cormorant
+                            SC（OFL），只用于拉丁大写与数字。
+                        </p>
+                    </div>
+                    <div class="spec on-wood">
+                        <h3>拉丁正文与数字 · 海域名、轮次、座位号</h3>
+                        <div
+                            class="sample"
+                            style="
+                                font-family: var(--font-latin);
+                                font-style: italic;
+                                font-size: 24px;
+                                color: var(--text-on-wood);
+                            "
+                        >
+                            Sinus Piratarum ·
+                            <span
+                                style="
+                                    font-family: var(--font-numeral);
+                                    font-style: normal;
+                                "
+                                >1 2 3 4 5 6 7 8 9 10 11</span
+                            >
+                        </div>
+                        <p>
+                            预览：Hoefler Text / Didot。正式：IM Fell
+                            English（海域名、轮次）与 EB
+                            Garamond（座位号数字），均为 OFL。
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>材质<small>MATERIALS</small></h2>
+                <div class="grid materials">
+                    <div class="material">
+                        <h3>胡桃木桌</h3>
+                        <div class="swatch wood"></div>
+                        <p>界面底色。横向木板与接缝，一盏提灯从右上角照来。</p>
+                    </div>
+                    <div class="material">
+                        <h3>羊皮纸</h3>
+                        <div class="swatch parchment"></div>
+                        <p>海图、日志、名签。斑驳、边缘偏暖，从不是纯白。</p>
+                    </div>
+                    <div class="material">
+                        <h3>黄铜</h3>
+                        <div class="swatch brass"></div>
+                        <p>结构与提示：罗盘环、铭牌、主按钮、职位徽记。</p>
+                    </div>
+                    <div class="material">
+                        <h3>封蜡</h3>
+                        <div
+                            class="swatch"
+                            id="wax-demo"
+                            style="background: rgba(0, 0, 0, 0.2)"
+                        ></div>
+                        <p>座位与秘密。每位船员一枚，数字压在蜡里。</p>
+                    </div>
+                    <div class="material">
+                        <h3>朱印</h3>
+                        <div
+                            class="swatch parchment"
+                            style="gap: 6px; align-content: center"
+                        >
+                            <span class="stamp" style="font-size: 16px"
+                                >割舌</span
+                            ><span
+                                class="stamp is-verdigris"
+                                style="font-size: 16px"
+                                >仪式 · 皈依</span
+                            >
+                        </div>
+                        <p>状态与裁决：盖章即生效，落章有挤压回弹。</p>
+                    </div>
+                    <div class="material">
+                        <h3>墨线</h3>
+                        <div class="swatch parchment">
+                            <svg
+                                width="150"
+                                height="80"
+                                viewBox="0 0 150 80"
+                                aria-hidden="true"
+                            >
+                                <defs>
+                                    <filter id="rough-demo">
+                                        <feTurbulence
+                                            type="fractalNoise"
+                                            baseFrequency=".04"
+                                            numOctaves="2"
+                                            seed="9"
+                                        />
+                                        <feDisplacementMap
+                                            in="SourceGraphic"
+                                            scale="1.6"
+                                        />
+                                    </filter>
+                                </defs>
+                                <path
+                                    d="M12 64 C 40 20, 70 70, 100 32 S 136 24, 140 16"
+                                    fill="none"
+                                    stroke="#3a2b1b"
+                                    stroke-width="2.4"
+                                    stroke-dasharray="0.5 7"
+                                    stroke-linecap="round"
+                                    filter="url(#rough-demo)"
+                                />
+                                <line
+                                    x1="12"
+                                    y1="74"
+                                    x2="140"
+                                    y2="74"
+                                    stroke="#3a2b1b"
+                                    stroke-width="1.1"
+                                    filter="url(#rough-demo)"
+                                />
+                            </svg>
+                        </div>
+                        <p>航迹与记录：点状墨线、轻微手抖的描边。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>组件<small>COMPONENTS</small></h2>
+                <div class="grid comps">
+                    <div class="comp">
+                        <h3>座位 · 状态</h3>
+                        <div class="demo" id="seat-states"></div>
+                        <p>
+                            封蜡 +
+                            名签。轮到谁：金色光晕与海图边缘的黄铜指针；职位：黄铜徽记压在蜡上；出局：蜡变灰、名字被朱笔划掉。
+                        </p>
+                    </div>
+                    <div class="comp">
+                        <h3>职位徽记</h3>
+                        <div class="demo">
+                            <span
+                                class="token brass"
+                                style="
+                                    position: static;
+                                    width: 64px;
+                                    height: 64px;
+                                "
+                                ><img
+                                    src="/art/captain.webp"
+                                    alt="船长"
+                                    style="width: 46px; height: 46px"
+                            /></span>
+                            <span
+                                class="token brass"
+                                style="
+                                    position: static;
+                                    width: 64px;
+                                    height: 64px;
+                                "
+                                ><img
+                                    src="/art/mate.webp"
+                                    alt="大副"
+                                    style="width: 46px; height: 46px"
+                            /></span>
+                            <span
+                                class="token brass"
+                                style="
+                                    position: static;
+                                    width: 64px;
+                                    height: 64px;
+                                "
+                                ><img
+                                    src="/art/compass.webp"
+                                    alt="领航员"
+                                    style="width: 46px; height: 46px"
+                            /></span>
+                        </div>
+                        <p>
+                            船长、大副、领航员。徽记在座位之间跳转，就是任命与换船长的动画。领航员徽记目前借用罗盘图层，需要补一枚专属徽章。
+                        </p>
+                    </div>
+                    <div class="comp">
+                        <h3>阶段铭牌与按钮</h3>
+                        <div
+                            class="demo"
+                            style="flex-direction: column; gap: 14px"
+                        >
+                            <div
+                                class="phase-plaque brass"
+                                style="position: relative; transform: none"
+                            >
+                                <small>ROUND III · THE NAVIGATOR</small>
+                                <strong>第三轮 · 领航抉择</strong>
+                            </div>
+                            <div style="display: flex; gap: 10px">
+                                <button class="btn-brass brass">
+                                    执行这条航线 →
+                                </button>
+                                <button class="btn-quiet">跳船抗命…</button>
+                            </div>
+                        </div>
+                        <p>
+                            黄铜只给「结构」和「主操作」：一屏最多一个黄铜按钮。次要操作是透明描边，危险操作需要二次确认。
+                        </p>
+                    </div>
+                    <div class="comp">
+                        <h3>手牌 · 选中</h3>
+                        <div class="demo">
+                            <div
+                                class="card"
+                                style="width: 116px; height: 116px"
+                            >
+                                <img src="/art/nav-west.webp" alt="" /><span
+                                    class="card-plaque"
+                                    ><b>武装</b
+                                    ><small>领航员获得 1 把枪</small></span
+                                >
+                            </div>
+                            <div
+                                class="card"
+                                data-chosen
+                                style="width: 116px; height: 116px"
+                            >
+                                <img src="/art/nav-east.webp" alt="" /><span
+                                    class="card-plaque"
+                                    ><b>缴械</b
+                                    ><small>领航员失去 1 把枪</small></span
+                                >
+                            </div>
+                        </div>
+                        <p>
+                            直接使用版画牌面，效果写在顶部铭牌上。选中：抬起、轻微倾斜、黄铜描边与提灯光晕。
+                        </p>
+                    </div>
+                    <div class="comp">
+                        <h3>秘密档案</h3>
+                        <div class="demo">
+                            <div class="id-card">
+                                <div class="back">
+                                    <img src="/art/secret.webp" alt="" />
+                                </div>
+                                <div
+                                    class="seal-on-card"
+                                    id="tile-dossier"
+                                ></div>
+                                <span>秘密档案</span>
+                            </div>
+                            <div style="width: 92px; text-align: center">
+                                <div
+                                    class="parchment"
+                                    style="
+                                        height: 124px;
+                                        border-radius: 8px;
+                                        display: grid;
+                                        place-items: center;
+                                        padding: 10px;
+                                        box-shadow: 0 12px 22px
+                                            rgba(0, 0, 0, 0.6);
+                                        transform: rotate(3deg);
+                                    "
+                                >
+                                    <img
+                                        src="/art/id-pirate.webp"
+                                        alt=""
+                                        style="width: 64px"
+                                    />
+                                    <b
+                                        style="
+                                            font-family: var(--font-hand);
+                                            font-size: 16px;
+                                        "
+                                        >海盗</b
+                                    >
+                                </div>
+                                <span
+                                    style="
+                                        display: block;
+                                        margin-top: 10px;
+                                        font-size: 12px;
+                                        color: var(--text-on-wood-dim);
+                                    "
+                                    >翻开后</span
+                                >
+                            </div>
+                        </div>
+                        <p>
+                            扣着的牌加一枚封蜡：点击撕开封蜡翻面；离开页面自动合上。私密情报同样用封着的便笺呈现。
+                        </p>
+                    </div>
+                    <div class="comp">
+                        <h3>航海日志 · 一轮一条</h3>
+                        <div class="demo">
+                            <div
+                                class="parchment"
+                                style="
+                                    width: 100%;
+                                    padding: 4px 14px;
+                                    border-radius: 6px;
+                                "
+                                id="tile-entry"
+                            ></div>
+                        </div>
+                        <p>
+                            每轮一条：谁当官、叛变几枪、最终航线、触发了什么。这是语音里吵架时大家指着看的证据。
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>动效规则<small>MOTION</small></h2>
+                <div class="grid motion">
+                    <div>
+                        <b>指针</b
+                        ><span
+                            >黄铜指针以弹簧摆向下一位行动者，略过冲后停稳；停稳后完全静止。</span
+                        >
+                    </div>
+                    <div>
+                        <b>盖章</b
+                        ><span
+                            >朱印落下：先挤压后回弹，墨色从边缘向内晕开；同一时刻只盖一枚。</span
+                        >
+                    </div>
+                    <div>
+                        <b>墨迹</b
+                        ><span
+                            >日志条目逐字写出，笔尖停在最后一个字后面；旧条目不动。</span
+                        >
+                    </div>
+                    <div>
+                        <b>翻牌</b
+                        ><span
+                            >揭牌在桌面中央翻面，翻完停顿一拍再归位到日志里。</span
+                        >
+                    </div>
+                    <div>
+                        <b>徽记换手</b
+                        ><span
+                            >沿弧线跳到新座位，落下时座位轻微回弹；船长徽记转一整圈。</span
+                        >
+                    </div>
+                    <div>
+                        <b>航迹</b
+                        ><span
+                            >船沿点状墨线前进，镜头提前半拍推近落点；落水时一圈涟漪。</span
+                        >
+                    </div>
+                    <div>
+                        <b>深渊</b
+                        ><span
+                            >只在邪教仪式与接近克拉肯时：灯光收窄，墨色从桌沿渗入。</span
+                        >
+                    </div>
+                    <div>
+                        <b>静止</b
+                        ><span
+                            >等待别人操作时整桌不动。动作之所以有分量，是因为大部分时间是静的。</span
+                        >
+                    </div>
+                </div>
+            </section>
+        </main>
+        <script type="module">
+            import { waxSeal } from "./kit.js";
+
+            const groups = [
+                [
+                    "木与铜",
+                    [
+                        ["胡桃木", "#25180f"],
+                        ["深胡桃", "#140d08"],
+                        ["黄铜", "#c6a04a"],
+                        ["亮铜", "#ecd493"],
+                    ],
+                ],
+                [
+                    "纸与墨",
+                    [
+                        ["羊皮纸", "#ead9b4"],
+                        ["旧纸", "#cfb47f"],
+                        ["铁胆墨", "#20170e"],
+                        ["朱砂", "#ad3528"],
+                    ],
+                ],
+                [
+                    "蜡与海",
+                    [
+                        ["封蜡", "#85211c"],
+                        ["海盗湾", "#a1412d"],
+                        ["皇家航道", "#3c6d91"],
+                        ["克拉肯之喉", "#b58628"],
+                    ],
+                ],
+            ];
+            document.getElementById("swatches").innerHTML = groups
+                .map(
+                    ([title, colors]) =>
+                        `<div><h3>${title}</h3><div class="swatches">${colors
+                            .map(
+                                ([name, hex]) =>
+                                    `<figure><div style="background:${hex}"></div><figcaption>${name}<code>${hex}</code></figcaption></figure>`,
+                            )
+                            .join("")}</div></div>`,
+                )
+                .join("");
+
+            document.getElementById("wax-demo").innerHTML = waxSeal(7, {
+                size: 72,
+                seed: 7,
+            });
+            document.getElementById("tile-dossier").innerHTML = waxSeal("密", {
+                size: 44,
+                seed: 12,
+            });
+
+            const seat = (
+                n,
+                name,
+                extra = "",
+                flags = "",
+                token = "",
+                stamps = "",
+            ) => `
+              <div class="seat-demo">
+                <div class="seat" ${flags}>
+                  <div class="medallion">${waxSeal(n, { size: 50, seed: n, dim: flags.includes("data-dead") })}${token}</div>
+                  <div class="tag parchment" data-side="bottom"><span class="tag-name">${name}${extra}</span><span class="tag-meta"><span class="guns"><img src="/art/gun.webp" alt="">3</span>${stamps}</span></div>
+                </div>
+              </div>`;
+            document.getElementById("seat-states").innerHTML = [
+                seat(
+                    3,
+                    "铁锚",
+                    "",
+                    "",
+                    `<span class="token brass"><img src="/art/captain.webp" alt=""></span>`,
+                ),
+                seat(
+                    5,
+                    "Dean",
+                    "<small>你</small>",
+                    "data-me data-turn",
+                    `<span class="token brass"><img src="/art/compass.webp" alt=""></span>`,
+                ),
+                seat(2, "灰鸥", "", "", "", `<span class="stamp">割舌</span>`),
+                seat(
+                    8,
+                    "盐巴",
+                    "",
+                    "data-dead",
+                    "",
+                    `<span class="stamp">离船</span>`,
+                ),
+            ].join("");
+
+            document.getElementById("tile-entry").innerHTML = `
+              <div class="entry">
+                <span class="round-num">ii</span>
+                <div class="entry-crew">
+                  <span class="office"><small>船长</small><span class="who"><i class="dot">3</i>铁锚</span></span>
+                  <span class="office"><small>大副</small><span class="who"><i class="dot">9</i>雾笛</span></span>
+                  <span class="office"><small>领航</small><span class="who"><i class="dot">2</i>灰鸥</span></span>
+                </div>
+                <div class="entry-outcome">叛变 2 枪 · 败 <span class="mini-card"><img src="/art/nav-north.webp" alt="">北 · 邪教起义</span><span class="stamp is-verdigris">仪式 · 皈依</span></div>
+              </div>`;
+        </script>
+    </body>
+</html>

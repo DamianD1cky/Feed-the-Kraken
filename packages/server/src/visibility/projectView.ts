@@ -301,7 +301,7 @@ function getPrivatePrompt(state: GameState, viewerId: PlayerId): PrivatePrompt |
 }
 
 function toPublicLogEntry(event: GameEvent): PublicLogEntry {
-  return { seq: event.seq, at: event.at, message: publicMessage(event) };
+  return { seq: event.seq, kind: event.type, at: event.at, message: publicMessage(event) };
 }
 
 function publicMessage(event: GameEvent): string {

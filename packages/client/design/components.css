@@ -1,0 +1,647 @@
+/* 海图桌 · prototype components. Sizes are authored on a 1440×900 artboard. */
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    background: #0b0705;
+    color: var(--text-on-wood);
+    font-family: var(--font-print);
+    -webkit-font-smoothing: antialiased;
+}
+.stage-fit {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+.artboard {
+    position: relative;
+    width: 1440px;
+    height: 900px;
+    overflow: hidden;
+    transform-origin: center;
+    flex: none;
+}
+
+/* ── top bar ─────────────────────────────────────────── */
+.topbar {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 0 22px;
+    background: rgba(9, 6, 3, 0.55);
+    border-bottom: 1px solid rgba(236, 212, 147, 0.12);
+    z-index: 5;
+}
+.wordmark {
+    font-family: var(--font-plaque);
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    color: var(--brass-200);
+    white-space: nowrap;
+}
+.wordmark i {
+    font-style: normal;
+    color: var(--brass-300);
+    margin-right: 10px;
+}
+.room-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 3px 12px;
+    border: 1px solid rgba(236, 212, 147, 0.2);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--text-on-wood-dim);
+}
+.room-chip b {
+    font-family: var(--font-numeral);
+    font-weight: 400;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    color: var(--brass-200);
+}
+.room-chip small {
+    font-family: var(--font-plaque);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+}
+.topbar-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+}
+.ghost-btn {
+    padding: 7px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text-on-wood);
+    cursor: pointer;
+}
+.ghost-btn:hover {
+    background: rgba(236, 212, 147, 0.08);
+}
+
+/* ── the chart in its bezel ──────────────────────────── */
+.bezel {
+    position: absolute;
+    filter: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.65));
+}
+.disc {
+    position: absolute;
+    border-radius: 50%;
+    box-shadow:
+        inset 0 0 0 1px rgba(80, 52, 20, 0.6),
+        inset 0 6px 24px rgba(70, 40, 10, 0.45);
+}
+.chart {
+    position: absolute;
+    overflow: visible;
+}
+.chart .water {
+    fill: rgba(255, 248, 228, 0.1);
+    stroke: rgba(58, 43, 27, 0.6);
+    stroke-width: 1.1;
+}
+.chart .dest {
+    stroke-width: 1.3;
+}
+.chart .marker-ring {
+    fill: rgba(243, 231, 203, 0.92);
+    stroke: var(--ink-700);
+    stroke-width: 1.2;
+}
+.chart .marker-label,
+.chart .hand-note {
+    font-family: var(--font-hand);
+    fill: var(--ink-700);
+}
+.chart .water-name {
+    font-family: var(--font-hand);
+    fill: var(--ink-500);
+}
+.chart .water-latin {
+    font-family: var(--font-latin);
+    font-style: italic;
+    fill: var(--ink-300);
+}
+.chart .waypoint {
+    font-family: var(--font-latin);
+    font-style: italic;
+    fill: var(--ink-700);
+}
+.phase-plaque {
+    position: absolute;
+    display: grid;
+    justify-items: center;
+    gap: 1px;
+    padding: 5px 22px 6px;
+    border-radius: 4px;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+}
+.phase-plaque small {
+    font-family: var(--font-plaque);
+    font-size: 9px;
+    letter-spacing: 0.24em;
+    opacity: 0.8;
+}
+.phase-plaque strong {
+    font-size: 18px;
+    letter-spacing: 0.14em;
+    line-height: 1.2;
+}
+.phase-plaque::before,
+.phase-plaque::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    margin-top: -2.5px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff3cf, #7a5a21);
+}
+.phase-plaque::before {
+    left: 8px;
+}
+.phase-plaque::after {
+    right: 8px;
+}
+
+/* ── seats ────────────────────────────────────────────── */
+.seat {
+    position: absolute;
+    width: 0;
+    height: 0;
+    z-index: 4;
+}
+.medallion {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.55));
+}
+.seal {
+    display: block;
+}
+.seal-num {
+    font-family: var(--font-numeral);
+    fill: rgba(52, 6, 4, 0.9);
+}
+.seal-num-hi {
+    fill: rgba(255, 196, 176, 0.35);
+}
+.seat[data-me] .medallion::before {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 2px solid var(--brass-300);
+    box-shadow: inset 0 0 0 1px rgba(60, 40, 10, 0.6);
+}
+.seat[data-turn] .medallion::after {
+    content: "";
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    background: radial-gradient(
+        circle,
+        rgba(255, 207, 138, 0.38) 40%,
+        rgba(255, 207, 138, 0) 70%
+    );
+    z-index: -1;
+}
+.seat[data-dead] .medallion {
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5)) grayscale(0.4);
+    opacity: 0.8;
+}
+.token {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    right: -14px;
+    top: -12px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+}
+.token img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 1px rgba(40, 20, 0, 0.5));
+}
+/* Name slips: a scrap of the muster roll pinned beside each seal. */
+.tag {
+    position: absolute;
+    display: grid;
+    gap: 2px;
+    padding: 5px 10px 6px;
+    border-radius: 2px;
+    white-space: nowrap;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.55);
+}
+.tag[data-side="right"] {
+    left: 38px;
+    top: 0;
+    transform: translateY(-50%) rotate(-1.5deg);
+}
+.tag[data-side="left"] {
+    right: 38px;
+    top: 0;
+    transform: translateY(-50%) rotate(1.5deg);
+    justify-items: end;
+}
+.tag[data-side="bottom"] {
+    left: 50%;
+    top: 40px;
+    transform: translateX(-50%) rotate(-1deg);
+    justify-items: center;
+}
+.tag-name {
+    font-family: var(--font-hand);
+    font-size: 17px;
+    line-height: 1.15;
+    color: var(--ink-900);
+}
+.tag-name small {
+    margin-left: 5px;
+    font-family: var(--font-print);
+    font-size: 10px;
+    color: var(--vermilion);
+}
+.seat[data-dead] .tag {
+    filter: saturate(0.6) brightness(0.86);
+}
+.seat[data-dead] .tag-name {
+    text-decoration: line-through;
+    text-decoration-color: var(--vermilion);
+    text-decoration-thickness: 2px;
+}
+.tag-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink-500);
+}
+.guns {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-family: var(--font-numeral);
+    font-size: 13px;
+    color: var(--ink-700);
+}
+.guns img {
+    width: 17px;
+    filter: sepia(0.4) brightness(0.7);
+}
+.tag .stamp {
+    font-size: 10px;
+    padding: 0 4px;
+}
+
+/* ── logbook ──────────────────────────────────────────── */
+.logbook {
+    position: absolute;
+    padding: 20px 24px 16px 34px;
+    background-color: var(--parchment-200);
+    border-radius: 3px 10px 10px 3px;
+    transform: rotate(-0.6deg);
+    box-shadow:
+        0 22px 44px rgba(0, 0, 0, 0.62),
+        0 2px 0 rgba(255, 245, 220, 0.25) inset;
+}
+.logbook::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 14px;
+    border-radius: 3px 0 0 3px;
+    background: linear-gradient(90deg, #2c180d, #4a2b18 60%, #2e1a0f);
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.4);
+}
+.logbook::after {
+    content: "";
+    position: absolute;
+    left: 20px;
+    top: 12px;
+    bottom: 12px;
+    border-left: 1px dashed rgba(90, 60, 30, 0.45);
+}
+.log-tabs {
+    position: absolute;
+    top: -26px;
+    left: 40px;
+    display: flex;
+    gap: 6px;
+}
+.log-tab {
+    padding: 5px 14px 8px;
+    border-radius: 6px 6px 0 0;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--ink-700);
+}
+.log-tab[aria-selected="false"] {
+    background: var(--parchment-300);
+    color: var(--ink-500);
+    filter: brightness(0.82);
+}
+.log-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1.5px solid rgba(58, 43, 27, 0.55);
+}
+.log-head h2 {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: 0.18em;
+}
+.log-head span {
+    font-family: var(--font-latin);
+    font-style: italic;
+    font-size: 15px;
+    color: var(--ink-500);
+}
+.ledger {
+    margin-top: 4px;
+}
+/* One handwritten entry per round: who held the offices, then what happened. */
+.entry {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    column-gap: 8px;
+    row-gap: 4px;
+    padding: 9px 0 8px;
+    border-bottom: 1px solid rgba(58, 43, 27, 0.22);
+    font-family: var(--font-hand);
+    font-size: 15px;
+    color: var(--ink-900);
+}
+.entry.is-current {
+    background: linear-gradient(transparent 70%, rgba(178, 140, 60, 0.16) 70%);
+}
+.entry-crew,
+.entry-outcome {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+}
+.entry-outcome {
+    font-size: 13px;
+    color: var(--ink-700);
+}
+.office {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.office > small {
+    font-family: var(--font-print);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-300);
+}
+.round-num {
+    grid-row: span 2;
+    font-family: var(--font-latin);
+    font-style: italic;
+    font-size: 17px;
+    line-height: 1.3;
+    color: var(--ink-700);
+}
+.who {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    white-space: nowrap;
+}
+.dot {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: radial-gradient(
+        circle at 35% 30%,
+        var(--wax-200),
+        var(--wax-600) 60%,
+        var(--wax-800)
+    );
+    color: #fbe6dc;
+    font-family: var(--font-numeral);
+    font-size: 10px;
+    font-style: normal;
+}
+.mini-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+.mini-card img {
+    width: 26px;
+    height: 26px;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(40, 20, 5, 0.5);
+}
+.pending {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px dashed rgba(58, 43, 27, 0.5);
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--ink-500);
+}
+.entries {
+    margin-top: 14px;
+}
+.entries h3 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    color: var(--ink-500);
+}
+.entries ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--font-hand);
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--ink-700);
+}
+.entries li.is-writing {
+    color: var(--ink-900);
+}
+.entries li.is-writing::after {
+    content: "";
+    display: inline-block;
+    width: 1.5px;
+    height: 1em;
+    margin-left: 3px;
+    vertical-align: -2px;
+    background: var(--ink-900);
+}
+.log-foot {
+    margin-top: 10px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--ink-300);
+}
+
+/* ── your place at the table ──────────────────────────── */
+.mine {
+    position: absolute;
+}
+.eyebrow {
+    font-family: var(--font-plaque);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    color: var(--brass-200);
+}
+.mine h2 {
+    margin: 6px 0 4px;
+    font-size: 26px;
+    letter-spacing: 0.12em;
+    color: var(--text-on-wood);
+}
+.mine p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-on-wood-dim);
+}
+.hand {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    margin-top: 18px;
+}
+.card {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 14px 26px rgba(0, 0, 0, 0.6);
+    flex: none;
+}
+.card img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.card-plaque {
+    position: absolute;
+    top: 9%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: grid;
+    justify-items: center;
+    padding: 3px 10px 4px;
+    border-radius: 3px;
+    background: linear-gradient(#f3e5c2, #d6bc86);
+    color: #2a1c0d;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    white-space: nowrap;
+}
+.card-plaque b {
+    font-size: 15px;
+    letter-spacing: 0.12em;
+}
+.card-plaque small {
+    font-size: 9px;
+    opacity: 0.75;
+}
+.card[data-chosen] {
+    transform: translateY(-14px) rotate(1.5deg);
+    box-shadow:
+        0 0 0 2px var(--brass-300),
+        0 0 22px rgba(255, 207, 138, 0.45),
+        0 22px 32px rgba(0, 0, 0, 0.65);
+}
+.id-card {
+    position: relative;
+    width: 92px;
+    flex: none;
+    text-align: center;
+}
+.id-card .back {
+    position: relative;
+    height: 124px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 12px 22px rgba(0, 0, 0, 0.6);
+    transform: rotate(-4deg);
+}
+.id-card .back img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: saturate(0.85);
+}
+.id-card .seal-on-card {
+    position: absolute;
+    left: 50%;
+    top: 56%;
+    transform: translate(-50%, -50%) rotate(-8deg);
+    filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.55));
+}
+.id-card span {
+    display: block;
+    margin-top: 10px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--text-on-wood-dim);
+}
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+}
+.btn-brass {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 22px;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+}
+.btn-quiet {
+    padding: 10px 14px;
+    border: 1px solid rgba(236, 212, 147, 0.22);
+    border-radius: 6px;
+    background: rgba(20, 12, 6, 0.4);
+    font: inherit;
+    font-size: 13px;
+    color: var(--text-on-wood);
+    cursor: pointer;
+}

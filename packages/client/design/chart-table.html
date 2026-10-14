@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>海图桌 · 高保真静态稿</title>
+        <link rel="stylesheet" href="./tokens.css" />
+        <link rel="stylesheet" href="./components.css" />
+    </head>
+    <body>
+        <div class="stage-fit">
+            <main
+                class="artboard wood"
+                id="board"
+                aria-label="海图桌：第 3 轮，领航抉择"
+            >
+                <header class="topbar">
+                    <span class="wordmark"><i>✦</i>FEED THE KRAKEN</span>
+                    <span class="room-chip"
+                        ><small>ROOM</small><b>b--foZwsc</b>9 人在船 ·
+                        已连接</span
+                    >
+                    <nav class="topbar-actions">
+                        <button class="ghost-btn">船员手册</button>
+                        <button class="ghost-btn">返回港口</button>
+                    </nav>
+                </header>
+                <div class="phase-plaque brass" id="plaque">
+                    <small>ROUND III · THE NAVIGATOR</small>
+                    <strong>第三轮 · 领航抉择</strong>
+                </div>
+                <aside
+                    class="logbook parchment"
+                    id="logbook"
+                    style="left: 1006px; top: 74px; width: 408px"
+                >
+                    <div class="log-tabs">
+                        <span class="log-tab parchment" aria-selected="true"
+                            >航行记录</span
+                        >
+                        <span class="log-tab" aria-selected="false"
+                            >船员名册</span
+                        >
+                    </div>
+                    <div class="log-head">
+                        <h2>航海日志</h2>
+                        <span>Ship's Log · iii</span>
+                    </div>
+                    <div class="ledger" id="ledger"></div>
+                    <section class="entries">
+                        <h3>今日条目 · 第三轮</h3>
+                        <ol>
+                            <li>叛变失败，只亮出 1 把枪，枪尽数收回。</li>
+                            <li>船长 铁锚 抽了 2 张航行牌，留 1 张入日志。</li>
+                            <li>大副 小雀 抽了 2 张，留 1 张。</li>
+                            <li class="is-writing">
+                                日志交到了领航员 Dean 手中
+                            </li>
+                        </ol>
+                    </section>
+                    <p class="log-foot">公开记录 · 私密情报不会写进这本日志</p>
+                </aside>
+                <section
+                    class="mine"
+                    style="left: 1008px; top: 572px; width: 404px"
+                    aria-label="你的位置"
+                >
+                    <span class="eyebrow">YOUR MOVE · 轮到你了</span>
+                    <h2>领航抉择</h2>
+                    <p>
+                        从两张候选牌中选 1
+                        张执行，另一张弃入深海；也可以跳船抗命。
+                    </p>
+                    <div class="hand">
+                        <div class="id-card">
+                            <div class="back">
+                                <img src="/art/secret.webp" alt="" />
+                            </div>
+                            <div class="seal-on-card" id="dossier-seal"></div>
+                            <span>秘密档案</span>
+                        </div>
+                        <div class="card" data-dir="east">
+                            <img src="/art/nav-east.webp" alt="东 · 水手" />
+                            <span class="card-plaque"
+                                ><b>醉酒</b
+                                ><small>船长职务按简历轮换</small></span
+                            >
+                        </div>
+                        <div class="card" data-dir="north" data-chosen>
+                            <img src="/art/nav-north.webp" alt="北 · 克拉肯" />
+                            <span class="card-plaque"
+                                ><b>邪教起义</b
+                                ><small>翻开一张邪教仪式</small></span
+                            >
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-brass brass">
+                            执行这条航线 <span aria-hidden="true">→</span>
+                        </button>
+                        <button class="btn-quiet">跳船抗命…</button>
+                    </div>
+                </section>
+            </main>
+        </div>
+        <script type="module">
+            import { hexCells, hexPoints, polar, waxSeal } from "./kit.js";
+
+            const board = document.getElementById("board");
+            const CX = 486;
+            const CY = 484;
+            const BAND_IN = 310;
+            const BAND_OUT = 360;
+            const SEAT_R = 335;
+            const DISC_R = 304;
+
+            const players = [
+                { seat: 1, name: "老约翰", guns: 3 },
+                {
+                    seat: 2,
+                    name: "灰鸥",
+                    guns: 3,
+                    stamps: [
+                        ["割舌", ""],
+                        ["下班", "is-verdigris"],
+                    ],
+                },
+                { seat: 3, name: "铁锚", guns: 3, office: "captain" },
+                { seat: 4, name: "瞎眼汤姆", guns: 2 },
+                {
+                    seat: 5,
+                    name: "Dean",
+                    guns: 3,
+                    office: "navigator",
+                    me: true,
+                    turn: true,
+                },
+                {
+                    seat: 6,
+                    name: "红胡子",
+                    guns: 3,
+                    stamps: [["不是海盗", "is-ink"]],
+                },
+                { seat: 7, name: "小雀", guns: 3, office: "firstMate" },
+                {
+                    seat: 8,
+                    name: "盐巴",
+                    guns: 3,
+                    dead: true,
+                    stamps: [["离船", ""]],
+                },
+                {
+                    seat: 9,
+                    name: "雾笛",
+                    guns: 3,
+                    stamps: [["下班", "is-verdigris"]],
+                },
+            ];
+            const officeArt = {
+                captain: "/art/captain.webp",
+                firstMate: "/art/mate.webp",
+                navigator: "/art/compass.webp",
+            };
+
+            // ── the bezel: brass band, engraved ticks, compass points, the pointer at the active seat ──
+            const viewerIndex = players.findIndex((p) => p.me);
+            const angleOf = (i) =>
+                90 +
+                ((i - viewerIndex + players.length) % players.length) *
+                    (360 / players.length);
+            const activeAngle = angleOf(players.findIndex((p) => p.turn));
+            const S = 380;
+            let ticks = "";
+            for (let d = 0; d < 360; d += 2) {
+                const long = d % 30 === 0 ? 15 : d % 10 === 0 ? 9 : 5;
+                const [x1, y1] = polar(S, S, BAND_OUT - 3, d);
+                const [x2, y2] = polar(S, S, BAND_OUT - 3 - long, d);
+                ticks += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#5a431a" stroke-width="${long > 5 ? 1.4 : 0.9}"/>`;
+                ticks += `<line x1="${x1 + 0.6}" y1="${y1 + 0.6}" x2="${x2 + 0.6}" y2="${y2 + 0.6}" stroke="rgba(255,240,200,.35)" stroke-width="0.6"/>`;
+            }
+            const letter = (deg, text, color) => {
+                const [x, y] = polar(S, S, BAND_IN + 13, deg);
+                return `<text x="${x}" y="${y + 5}" text-anchor="middle" font-family="Copperplate, serif" font-size="15" fill="#4a3612">${text}</text>
+                        <circle cx="${polar(S, S, BAND_IN + 13, deg - 6)[0]}" cy="${polar(S, S, BAND_IN + 13, deg - 6)[1]}" r="3.2" fill="${color}"/>`;
+            };
+            const [px, py] = polar(S, S, DISC_R - 16, activeAngle);
+            board.insertAdjacentHTML(
+                "beforeend",
+                `<svg class="bezel" width="${S * 2}" height="${S * 2}" viewBox="0 0 ${S * 2} ${S * 2}" style="left:${CX - S}px; top:${CY - S}px" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="brass-band" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stop-color="#f1d995"/><stop offset=".3" stop-color="#c39d47"/><stop offset=".55" stop-color="#e3c57c"/>
+                      <stop offset=".78" stop-color="#9c792c"/><stop offset="1" stop-color="#d7b667"/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="${S}" cy="${S}" r="${BAND_OUT + 6}" fill="#1a1009"/>
+                  <circle cx="${S}" cy="${S}" r="${(BAND_IN + BAND_OUT) / 2}" fill="none" stroke="url(#brass-band)" stroke-width="${BAND_OUT - BAND_IN}"/>
+                  <circle cx="${S}" cy="${S}" r="${BAND_OUT}" fill="none" stroke="#5c4418" stroke-width="1.5"/>
+                  <circle cx="${S}" cy="${S}" r="${BAND_IN}" fill="none" stroke="#5c4418" stroke-width="2"/>
+                  <circle cx="${S}" cy="${S}" r="${BAND_IN + 26}" fill="none" stroke="rgba(92,68,24,.5)" stroke-width="0.8"/>
+                  ${ticks}
+                  ${letter(0, "E", "#3c6d91")}
+                  ${letter(180, "W", "#a1412d")}
+                </svg>`,
+            );
+
+            // ── the chart: parchment disc, rhumb lines, inked hexes, destination washes, the voyage so far ──
+            board.insertAdjacentHTML(
+                "beforeend",
+                `<div class="disc parchment" style="left:${CX - DISC_R}px; top:${CY - DISC_R}px; width:${DISC_R * 2}px; height:${DISC_R * 2}px"></div>`,
+            );
+            const HEX = 48;
+            const cells = hexCells(3, HEX);
+            const shiftY =
+                (Math.sqrt(3) * HEX * 5.5 - Math.sqrt(3) * HEX * 0.5) / 2;
+            const at = (key) => {
+                const c = cells.find((cell) => cell.key === key);
+                return [c.x, c.y + shiftY];
+            };
+            const wash = {
+                pirate: "#a1412d",
+                sailor: "#3c6d91",
+                cult: "#b58628",
+            };
+            const emblem = {
+                pirate: "/art/id-pirate.webp",
+                sailor: "/art/id-sailor.webp",
+                cult: "/art/id-cult.webp",
+            };
+            let rhumbs = "";
+            for (const [ox, oy, n, op] of [
+                [0, 0, 32, 0.22],
+                [-246, 118, 16, 0.16],
+                [246, 118, 16, 0.16],
+            ]) {
+                for (let i = 0; i < n; i++) {
+                    const [x, y] = polar(ox, oy, 640, (i * 360) / n);
+                    rhumbs += `<line x1="${ox}" y1="${oy}" x2="${x}" y2="${y}" stroke="rgba(93,73,49,${op})" stroke-width="0.8"/>`;
+                }
+            }
+            const hexes = cells
+                .map((c) => {
+                    const [x, y] = [c.x, c.y + shiftY];
+                    if (c.kind === "water")
+                        return `<polygon class="water" points="${hexPoints(x, y, HEX)}"/>`;
+                    return `<polygon class="dest" points="${hexPoints(x, y, HEX)}" fill="${wash[c.kind]}" fill-opacity=".62" stroke="${wash[c.kind]}" filter="url(#bleed)"/>
+                            <image href="${emblem[c.kind]}" x="${x - 19}" y="${y - 19}" width="38" height="38" opacity=".92"/>`;
+                })
+                .join("");
+            const markers = [
+                ["0:2", "/art/id-cult.webp", "献祭"],
+                ["1:1", "/art/detect.webp", "搜查"],
+                ["2:2", "/art/detect.webp", "搜查"],
+                ["-2:1", "/art/lash.webp", "鞭笞"],
+            ]
+                .map(([key, icon, label]) => {
+                    const [x, y] = at(key);
+                    return `<g transform="translate(${x} ${y - 6})"><circle class="marker-ring" r="17"/><image href="${icon}" x="-12" y="-12" width="24" height="24"/>
+                            <text class="marker-label" y="31" text-anchor="middle" font-size="12">${label}</text></g>`;
+                })
+                .join("");
+            const route = ["0:0", "0:1", "-1:1"].map(at);
+            const routePath = route
+                .map(([x, y], i) => `${i ? "L" : "M"}${x} ${y}`)
+                .join(" ");
+            const [sx, sy] = at("-1:1");
+            const [startX, startY] = at("0:0");
+            board.insertAdjacentHTML(
+                "beforeend",
+                `<svg class="chart" width="${DISC_R * 2}" height="${DISC_R * 2}" viewBox="${-DISC_R} ${-DISC_R} ${DISC_R * 2} ${DISC_R * 2}"
+                      style="left:${CX - DISC_R}px; top:${CY - DISC_R}px" role="img" aria-label="海图：船位于第二轮航迹终点">
+                  <defs>
+                    <clipPath id="disc-clip"><circle r="${DISC_R - 2}"/></clipPath>
+                    <filter id="bleed"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="3"/></filter>
+                    <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="2" seed="9"/><feDisplacementMap in="SourceGraphic" scale="1.6"/></filter>
+                  </defs>
+                  <g clip-path="url(#disc-clip)">${rhumbs}</g>
+                  <g filter="url(#rough)">${hexes}</g>
+                  <g transform="translate(${startX} ${startY})" opacity=".75">
+                    <path d="M0 -26 L5 -5 L26 0 L5 5 L0 26 L-5 5 L-26 0 L-5 -5 Z" fill="rgba(93,73,49,.55)"/>
+                    <text class="marker-label" y="40" text-anchor="middle" font-size="12">起点</text>
+                  </g>
+                  ${markers}
+                  <path d="${routePath}" fill="none" stroke="#3a2b1b" stroke-width="2.4" stroke-dasharray="0.5 7" stroke-linecap="round" filter="url(#rough)"/>
+                  <text class="waypoint" x="${route[1][0] + 16}" y="${route[1][1] + 26}" font-size="13">i</text>
+                  <text class="waypoint" x="${route[2][0] - 30}" y="${route[2][1] + 30}" font-size="13">ii</text>
+                  <ellipse cx="${sx}" cy="${sy + 22}" rx="24" ry="6" fill="rgba(40,24,8,.32)"/>
+                  <image href="/art/ship.webp" x="${sx - 21}" y="${sy - 38}" width="42" height="58"/>
+                  <text class="water-name" x="-196" y="-196" font-size="17" text-anchor="middle" transform="rotate(-38 -196 -196)">海盗湾</text>
+                  <text class="water-latin" x="-178" y="-178" font-size="11" text-anchor="middle" transform="rotate(-38 -178 -178)">Sinus Piratarum</text>
+                  <text class="water-name" x="196" y="-196" font-size="17" text-anchor="middle" transform="rotate(38 196 -196)">皇家航道</text>
+                  <text class="water-latin" x="178" y="-178" font-size="11" text-anchor="middle" transform="rotate(38 178 -178)">Via Regia</text>
+                  <text class="water-name" x="0" y="-268" font-size="15" text-anchor="middle">克拉肯之喉 <tspan class="water-latin" font-size="11">Fauces Krakenis</tspan></text>
+                  <text class="hand-note" x="0" y="${DISC_R - 40}" font-size="14" text-anchor="middle">— 领航员 Dean 正在决定航线 —</text>
+                  <g transform="translate(${px - S} ${py - S}) rotate(${activeAngle})">
+                    <polygon points="16,0 -8,-10 -3,0 -8,10" fill="#ecd493" stroke="#5c4418" stroke-width="1.2"/>
+                  </g>
+                </svg>`,
+            );
+
+            // ── seats on the bezel: wax seal, office token, name tag pointing away from the chart ──
+            players.forEach((p, i) => {
+                const angle = angleOf(i);
+                const [x, y] = polar(CX, CY, SEAT_R, angle);
+                const cos = Math.cos((angle * Math.PI) / 180);
+                const side =
+                    cos > 0.25 ? "right" : cos < -0.25 ? "left" : "bottom";
+                const size = p.me ? 60 : 54;
+                const stamps = (p.stamps ?? [])
+                    .map(
+                        ([text, tone]) =>
+                            `<span class="stamp ${tone}">${text}</span>`,
+                    )
+                    .join("");
+                const token = p.office
+                    ? `<span class="token brass"><img src="${officeArt[p.office]}" alt=""></span>`
+                    : "";
+                board.insertAdjacentHTML(
+                    "beforeend",
+                    `<div class="seat" style="left:${x}px; top:${y}px" ${p.me ? "data-me" : ""} ${p.turn ? "data-turn" : ""} ${p.dead ? "data-dead" : ""}>
+                       <div class="medallion">${waxSeal(p.seat, { size, seed: p.seat, dim: p.dead })}${token}</div>
+                       <div class="tag parchment" data-side="${side}">
+                         <span class="tag-name">${p.name}${p.me ? "<small>你</small>" : ""}</span>
+                         <span class="tag-meta"><span class="guns"><img src="/art/gun.webp" alt="">${p.guns}</span>${stamps}</span>
+                       </div>
+                     </div>`,
+                );
+            });
+            const plaque = document.getElementById("plaque");
+            plaque.style.left = `${CX}px`;
+            plaque.style.top = `${CY - BAND_OUT - 10}px`;
+
+            // ── the ledger: one handwritten entry per round, the evidence everyone argues over ──
+            const who = (seat) =>
+                `<span class="who"><i class="dot">${seat}</i>${players.find((p) => p.seat === seat).name}</span>`;
+            const offices = ["船长", "大副", "领航"];
+            const rounds = [
+                {
+                    n: "i",
+                    crew: [3, 1, 4],
+                    outcome: `叛变 0 枪 <span class="mini-card"><img src="/art/nav-west.webp" alt="">西 · 美人鱼</span><span class="stamp">献祭 ⑧</span>`,
+                },
+                {
+                    n: "ii",
+                    crew: [3, 9, 2],
+                    outcome: `叛变 2 枪 · 败 <span class="mini-card"><img src="/art/nav-north.webp" alt="">北 · 邪教起义</span><span class="stamp is-verdigris">仪式 · 皈依</span><span class="stamp">割舌 ②</span>`,
+                },
+                {
+                    n: "iii",
+                    crew: [3, 7, 5],
+                    outcome: `叛变 1 枪 · 败 <span class="pending">航线待揭晓</span>`,
+                    current: true,
+                },
+            ];
+            document.getElementById("ledger").innerHTML = rounds
+                .map(
+                    (r) => `<div class="entry ${r.current ? "is-current" : ""}">
+                      <span class="round-num">${r.n}</span>
+                      <div class="entry-crew">${r.crew.map((seat, k) => `<span class="office"><small>${offices[k]}</small>${who(seat)}</span>`).join("")}</div>
+                      <div class="entry-outcome">${r.outcome}</div>
+                    </div>`,
+                )
+                .join("");
+            document.getElementById("dossier-seal").innerHTML = waxSeal("密", {
+                size: 44,
+                seed: 12,
+            });
+
+            const fit = () => {
+                const scale = Math.min(innerWidth / 1440, innerHeight / 900);
+                board.style.transform = `scale(${scale})`;
+            };
+            addEventListener("resize", fit);
+            fit();
+        </script>
+    </body>
+</html>

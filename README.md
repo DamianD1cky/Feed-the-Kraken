@@ -63,7 +63,7 @@ flowchart LR
 ### 环境要求
 
 - Node.js 22.12+
-- pnpm 9+
+- pnpm 10（版本由 `package.json` 的 `packageManager` 固定；依赖始终从 npm 官方源安装，见 `.npmrc`）
 
 ### 安装与启动
 
@@ -103,7 +103,7 @@ pnpm --filter @feed/client dev
 # 类型检查
 pnpm typecheck
 
-# 服务端测试
+# 测试（服务端规则 + 客户端导演层）
 pnpm test
 
 # 构建所有 workspace 包

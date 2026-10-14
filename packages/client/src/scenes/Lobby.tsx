@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createGameRoom, joinGameRoom } from "../connection";
 import { useAppStore } from "../store";
-import { art } from "../labels";
+
+const TITLE = [..."险恶疑航"];
 
 export function Lobby({ openRules }: { openRules(): void }) {
     const [nickname, setNickname] = useState("");
@@ -31,17 +32,19 @@ export function Lobby({ openRules }: { openRules(): void }) {
     }
     return (
         <div className="lobby">
-            <img
-                className="harbor-art"
-                src={art.harbor}
-                alt=""
-                fetchPriority="high"
-            />
-            <div className="harbor-shade" />
-            <section className="lobby-content">
+            <section className="lobby-content" data-embarking={busy || undefined}>
                 <p className="eyebrow">A VOYAGE OF TRUST & TREACHERY</p>
-                <h1>
-                    险恶疑航<span>FEED THE KRAKEN</span>
+                <h1 aria-label="险恶疑航 FEED THE KRAKEN">
+                    <span className="title-cn" aria-hidden="true">
+                        {TITLE.map((glyph, i) => (
+                            <span key={i} style={{ "--i": i } as CSSProperties}>
+                                {glyph}
+                            </span>
+                        ))}
+                    </span>
+                    <span className="title-en" aria-hidden="true">
+                        FEED THE KRAKEN
+                    </span>
                 </h1>
                 <p className="lobby-intro">
                     同舟，不同心。
@@ -55,24 +58,7 @@ export function Lobby({ openRules }: { openRules(): void }) {
                         void embark();
                     }}
                 >
-                    <div className="form-tabs" aria-label="登船方式">
-                        <button
-                            type="button"
-                            className={mode === "create" ? "active" : ""}
-                            aria-pressed={mode === "create"}
-                            onClick={() => setMode("create")}
-                        >
-                            召集船员
-                        </button>
-                        <button
-                            type="button"
-                            className={mode === "join" ? "active" : ""}
-                            aria-pressed={mode === "join"}
-                            onClick={() => setMode("join")}
-                        >
-                            凭房间号登船
-                        </button>
-                    </div>
+                    <Tabs mode={mode} onChange={setMode} />
                     <label>
                         船员称呼
                         <input
@@ -87,7 +73,7 @@ export function Lobby({ openRules }: { openRules(): void }) {
                         />
                     </label>
                     {mode === "join" && (
-                        <label>
+                        <label className="embark-field">
                             房间号
                             <input
                                 autoCapitalize="off"
@@ -120,7 +106,7 @@ export function Lobby({ openRules }: { openRules(): void }) {
                     {mode === "join" && (
                         <button
                             type="button"
-                            className="quiet"
+                            className="quiet embark-field"
                             disabled={busy || !roomId.trim()}
                             onClick={() => void embark(true)}
                         >
@@ -139,6 +125,42 @@ export function Lobby({ openRules }: { openRules(): void }) {
                 <span>THE HARBOR / 夜幕降临</span>
                 <p>深海，正等着下一位访客。</p>
             </div>
+        </div>
+    );
+}
+
+/** Two tabs whose underline slides to the chosen one instead of jumping. */
+function Tabs({ mode, onChange }: { mode: "create" | "join"; onChange(mode: "create" | "join"): void }) {
+    const create = useRef<HTMLButtonElement>(null);
+    const join = useRef<HTMLButtonElement>(null);
+    const ink = useRef<HTMLSpanElement>(null);
+    useLayoutEffect(() => {
+        const active = (mode === "create" ? create : join).current;
+        if (!active || !ink.current) return;
+        ink.current.style.width = `${active.offsetWidth}px`;
+        ink.current.style.transform = `translateX(${active.offsetLeft}px)`;
+    }, [mode]);
+    return (
+        <div className="form-tabs" aria-label="登船方式">
+            <button
+                ref={create}
+                type="button"
+                className={mode === "create" ? "active" : ""}
+                aria-pressed={mode === "create"}
+                onClick={() => onChange("create")}
+            >
+                召集船员
+            </button>
+            <button
+                ref={join}
+                type="button"
+                className={mode === "join" ? "active" : ""}
+                aria-pressed={mode === "join"}
+                onClick={() => onChange("join")}
+            >
+                凭房间号登船
+            </button>
+            <span ref={ink} className="form-tabs-ink" aria-hidden="true" />
         </div>
     );
 }

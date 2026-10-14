@@ -113,12 +113,12 @@
 | `items_capital.png`       | 船舵         | 船长               | `/art/captain.webp` |
 | `items_chief_officer.png` | 锚与月桂徽章 | 大副               | `/art/mate.webp`    |
 | `items_handgun.png`       | 手枪         | 玩家枪数、叛变投入 | `/art/gun.webp`     |
-| `items_detect.png`        | 放大镜       | 船舱搜查行动       | 未接入              |
-| `items_lash.png`          | 鞭子         | 鞭笞行动           | 未接入              |
-| `items_knife.png`         | 匕首         | 割舌行动           | 未接入              |
-| `items_rest.png`          | 啤酒杯       | 下班状态           | 未接入              |
+| `items_detect.png`        | 放大镜       | 船舱搜查行动       | `/art/detect.webp`  |
+| `items_lash.png`          | 鞭子         | 鞭笞行动           | `/art/lash.webp`    |
+| `items_knife.png`         | 匕首         | 割舌行动           | `/art/knife.webp`   |
+| `items_rest.png`          | 啤酒杯       | 下班状态           | `/art/rest.webp`    |
 
-目前缺少独立的领航员徽章美术。`items_capital.png` 中的 `capital` 是历史命名，实际含义是 `captain`；在完成代码引用迁移前不要直接改名。
+目前缺少独立的领航员徽章美术，前端暂用航行牌正面的罗盘图层 `navigation_card_face_element_compass.png`（`/art/compass.webp`）代替。`items_capital.png` 中的 `capital` 是历史命名，实际含义是 `captain`；在完成代码引用迁移前不要直接改名。
 
 ## 6. 非卡片资源
 
@@ -138,17 +138,21 @@
 
 `scripts/prepare-assets.sh` 将源图转换为 `packages/client/public/art/` 下的 WebP：
 
-| 前端键       | 运行时文件              | 源文件                                 |
-| ------------ | ----------------------- | -------------------------------------- |
-| `harbor`     | `/art/harbor.webp`      | `harbor_with_cthulhu_16-9.png`         |
-| `warmHarbor` | `/art/harbor-warm.webp` | `harbor_with_people_16_9.png`          |
-| `secret`     | `/art/secret.webp`      | `cult_cards/cult_card_back.png`        |
-| `captain`    | `/art/captain.webp`     | `items_cards/items_capital.png`        |
-| `mate`       | `/art/mate.webp`        | `items_cards/items_chief_officer.png`  |
-| `gun`        | `/art/gun.webp`         | `items_cards/items_handgun.png`        |
-| `ritual`     | `/art/ritual.webp`      | `cult_cards/cult_card_face_infect.png` |
+| 前端键                                   | 运行时文件                           | 源文件                                                      |
+| ---------------------------------------- | ------------------------------------ | ----------------------------------------------------------- |
+| `art.harbor`                             | `/art/harbor.webp`                   | `harbor_with_cthulhu_16-9.png`                              |
+| `art.warmHarbor`                         | `/art/harbor-warm.webp`              | `harbor_with_people_16_9.png`                               |
+| `art.secret`                             | `/art/secret.webp`                   | `cult_cards/cult_card_back.png`                             |
+| `art.navBack`                            | `/art/nav-back.webp`                 | `navigation_cards/navigation_card_back.png`                 |
+| `navFaceArt.east` / `west` / `north`     | `/art/nav-{east,west,north}.webp`    | `navigation_cards/navigation_card_face_location_*.png`      |
+| `art.ship`                               | `/art/ship.webp`                     | `navigation_cards/navigation_card_back_element_ship.png`    |
+| `art.compass`                            | `/art/compass.webp`                  | `navigation_cards/navigation_card_face_element_compass.png` |
+| `art.captain` / `mate` / `gun`           | `/art/{captain,mate,gun}.webp`       | `items_cards/items_{capital,chief_officer,handgun}.png`     |
+| `art.detect` / `lash` / `knife` / `rest` | `/art/{detect,lash,knife,rest}.webp` | `items_cards/items_{detect,lash,knife,rest}.png`            |
+| `factionArt.sailor` / `pirate` / `cult`  | `/art/id-{sailor,pirate,cult}.webp`  | `id_cards/id_card_{good,bad,cult}.png`                      |
+| `ritualArt.*`                            | `/art/ritual{,-guns,-detect}.webp`   | `cult_cards/cult_card_face_{infect,guns,detect}.png`        |
 
-航行牌正面、身份卡和其余状态图标尚未进入 `packages/client/src/labels.ts` 的运行时映射。
+透明主体（船、罗盘、物品与身份徽记）在 `prepare-assets.sh` 中先按绘制范围裁切再缩放，避免大片留白让图标显得过小。
 
 ## 8. 新增卡片时的检查清单
 

@@ -47,6 +47,20 @@ test("projectView exposes mutiny completion without private gun counts", () => {
   assert.doesNotMatch(view.publicLog.at(-1)?.message ?? "", /2/);
 });
 
+test("public log entries name the event kind without its payload", () => {
+  const state = createStartedState();
+  const converted: GameEvent = { type: "ritual.converted", seq: 2, targetId: "sailor-1", at: 1001 };
+
+  const view = projectView(state, "pirate-2", [mutinyEvent(2), converted]);
+
+  assert.deepEqual(
+    view.publicLog.map((entry) => Object.keys(entry).sort()),
+    [["at", "kind", "message", "seq"], ["at", "kind", "message", "seq"]],
+  );
+  assert.deepEqual(view.publicLog.map((entry) => entry.kind), ["mutiny.committed", "ritual.converted"]);
+  assert.doesNotMatch(JSON.stringify(view.publicLog), /sailor-1/);
+});
+
 test("mutiny tie-break prompt follows the eliminated candidate", () => {
   const state = createStartedState();
   state.phase = "mutiny_tiebreak";

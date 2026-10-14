@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>圆桌 · 第一人称草图</title>
+        <link rel="stylesheet" href="./tokens.css" />
+        <link rel="stylesheet" href="./components.css" />
+        <style>
+            html,
+            body {
+                height: 100%;
+                overflow: hidden;
+                background: #090604;
+            }
+            #scene {
+                position: fixed;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+            /* The far rim of the table sits outside the focal plane of someone seated at it. */
+            .depth {
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+                backdrop-filter: blur(1.4px);
+                -webkit-backdrop-filter: blur(1.4px);
+                mask-image: linear-gradient(
+                    to bottom,
+                    #000 0%,
+                    rgba(0, 0, 0, 0.35) 7%,
+                    transparent 13%
+                );
+                -webkit-mask-image: linear-gradient(
+                    to bottom,
+                    #000 0%,
+                    rgba(0, 0, 0, 0.35) 7%,
+                    transparent 13%
+                );
+            }
+            /* Light falls off toward the edges of the room; the grain keeps the dark from banding. */
+            .veil {
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+                background:
+                    radial-gradient(
+                        ellipse 80% 75% at 50% 48%,
+                        transparent 58%,
+                        rgba(5, 3, 2, 0.6) 100%
+                    ),
+                    var(--grain);
+                background-size:
+                    auto,
+                    220px 220px;
+                opacity: 0.9;
+            }
+            #slips {
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+            }
+            .slip {
+                left: 0;
+                top: 0;
+                will-change: transform;
+                transition: filter 1.2s;
+            }
+            .slip[data-dead] .tag-name {
+                text-decoration: line-through;
+                text-decoration-color: var(--vermilion);
+                text-decoration-thickness: 2px;
+            }
+            .slip[data-dead] {
+                filter: saturate(0.6) brightness(0.86);
+            }
+            body[data-deep] .slip {
+                filter: brightness(0.62) saturate(0.55) hue-rotate(-12deg);
+            }
+            body[data-deep] .slip[data-dead] {
+                filter: brightness(0.5) saturate(0.4);
+            }
+            /* Seated in your own chair, you do not need your own name in front of you. */
+            .slip[data-me] {
+                display: none;
+            }
+            .topbar {
+                position: fixed;
+                background: linear-gradient(
+                    rgba(9, 6, 3, 0.75),
+                    rgba(9, 6, 3, 0)
+                );
+                border-bottom: 0;
+            }
+            .confirm-slip {
+                position: fixed;
+                left: 0;
+                top: 0;
+                display: grid;
+                justify-items: center;
+                gap: 8px;
+                padding: 10px 14px 12px;
+                border-radius: 3px;
+                box-shadow: 0 14px 30px rgba(0, 0, 0, 0.6);
+                will-change: transform;
+            }
+            .confirm-slip .eyebrow {
+                color: var(--ink-500);
+            }
+            .confirm-slip .btn-brass {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+            .confirm-slip .btn-quiet {
+                padding: 2px 8px;
+                border: 0;
+                background: none;
+                font-size: 12px;
+                color: var(--ink-500);
+            }
+            .deep-toggle {
+                position: fixed;
+                left: 28px;
+                bottom: 30px;
+            }
+            .deep-toggle[aria-pressed="true"] {
+                border-color: #8fd18a;
+                color: #cfe9c9;
+            }
+            .loading {
+                position: fixed;
+                inset: 0;
+                display: grid;
+                place-items: center;
+                font-family: var(--font-hand);
+                font-size: 20px;
+                letter-spacing: 0.2em;
+                color: var(--text-on-wood-dim);
+                transition: opacity 0.6s;
+            }
+            body[data-ready] .loading {
+                opacity: 0;
+                pointer-events: none;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas
+            id="scene"
+            aria-label="圆桌：第三轮，领航抉择。你坐在桌前，地图铺在桌子正中的框里，船员的封蜡围着桌沿。"
+        ></canvas>
+        <div class="depth"></div>
+        <div class="veil"></div>
+        <div id="slips"></div>
+        <header class="topbar">
+            <span class="wordmark"><i>✦</i>FEED THE KRAKEN</span>
+            <span class="room-chip"
+                ><small>ROOM</small><b>b--foZwsc</b>9 人在船 · 已连接</span
+            >
+            <nav class="topbar-actions">
+                <button class="ghost-btn">航海日志</button>
+                <button class="ghost-btn">船员手册</button>
+                <button class="ghost-btn">返回港口</button>
+            </nav>
+        </header>
+        <button class="btn-quiet deep-toggle" id="deep" aria-pressed="false">
+            深渊语气：克拉肯靠近时
+        </button>
+        <div class="loading">正在把地图铺上桌……</div>
+        <script type="module" src="./round-table.js"></script>
+    </body>
+</html>

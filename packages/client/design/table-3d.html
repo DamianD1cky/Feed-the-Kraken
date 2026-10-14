@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>海图桌 · 3D 草图</title>
+        <link rel="stylesheet" href="./tokens.css" />
+        <link rel="stylesheet" href="./components.css" />
+        <style>
+            html,
+            body {
+                height: 100%;
+                overflow: hidden;
+                background: #090604;
+            }
+            #scene {
+                position: fixed;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+            /* The far side of the table sits outside the focal plane of someone seated at it. */
+            .depth {
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+                backdrop-filter: blur(1.8px);
+                -webkit-backdrop-filter: blur(1.8px);
+                mask-image: linear-gradient(
+                    to bottom,
+                    #000 0%,
+                    rgba(0, 0, 0, 0.4) 8%,
+                    transparent 18%
+                );
+                -webkit-mask-image: linear-gradient(
+                    to bottom,
+                    #000 0%,
+                    rgba(0, 0, 0, 0.4) 8%,
+                    transparent 18%
+                );
+            }
+            /* Light falls off toward the edges of the table; the grain keeps the dark from banding. */
+            .veil {
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+                background:
+                    radial-gradient(
+                        ellipse 75% 70% at 46% 52%,
+                        transparent 55%,
+                        rgba(5, 3, 2, 0.62) 100%
+                    ),
+                    var(--grain);
+                background-size:
+                    auto,
+                    220px 220px;
+                opacity: 0.9;
+            }
+            #slips {
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+            }
+            .slip {
+                left: 0;
+                top: 0;
+                will-change: transform;
+            }
+            .slip[data-dead] .tag-name {
+                text-decoration: line-through;
+                text-decoration-color: var(--vermilion);
+                text-decoration-thickness: 2px;
+            }
+            .slip[data-dead] {
+                filter: saturate(0.6) brightness(0.86);
+            }
+            .slip {
+                transition: filter 1.2s;
+            }
+            body[data-deep] .slip {
+                filter: brightness(0.62) saturate(0.55) hue-rotate(-12deg);
+            }
+            body[data-deep] .slip[data-dead] {
+                filter: brightness(0.5) saturate(0.4);
+            }
+            .topbar {
+                position: fixed;
+                background: linear-gradient(
+                    rgba(9, 6, 3, 0.75),
+                    rgba(9, 6, 3, 0)
+                );
+                border-bottom: 0;
+            }
+            .move {
+                position: fixed;
+                right: 36px;
+                bottom: 30px;
+                width: 340px;
+                padding: 18px 20px 20px;
+                border-radius: 10px;
+                background: rgba(14, 9, 5, 0.62);
+                border: 1px solid rgba(236, 212, 147, 0.16);
+                backdrop-filter: blur(6px);
+            }
+            .move h2 {
+                margin: 6px 0 4px;
+                font-size: 24px;
+                letter-spacing: 0.12em;
+            }
+            .move p {
+                margin: 0;
+                font-size: 13px;
+                line-height: 1.6;
+                color: var(--text-on-wood-dim);
+            }
+            .move .actions {
+                margin-top: 14px;
+            }
+            /* First person: no panel in the corner; a scrap of paper rides beside the card you picked up. */
+            body[data-fp] .move {
+                display: none;
+            }
+            /* Seated in your own chair, you do not need your own name in front of you. */
+            body[data-fp] .slip[data-me] {
+                display: none;
+            }
+            .confirm-slip {
+                position: fixed;
+                left: 0;
+                top: 0;
+                display: grid;
+                justify-items: center;
+                gap: 8px;
+                padding: 10px 14px 12px;
+                border-radius: 3px;
+                box-shadow: 0 14px 30px rgba(0, 0, 0, 0.6);
+                will-change: transform;
+            }
+            .confirm-slip .eyebrow {
+                color: var(--ink-500);
+            }
+            .confirm-slip .btn-brass {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+            .confirm-slip .btn-quiet {
+                padding: 2px 8px;
+                border: 0;
+                background: none;
+                font-size: 12px;
+                color: var(--ink-500);
+            }
+            .deep-toggle {
+                position: fixed;
+                left: 28px;
+                bottom: 30px;
+            }
+            .deep-toggle[aria-pressed="true"] {
+                border-color: #8fd18a;
+                color: #cfe9c9;
+            }
+            .loading {
+                position: fixed;
+                inset: 0;
+                display: grid;
+                place-items: center;
+                font-family: var(--font-hand);
+                font-size: 20px;
+                letter-spacing: 0.2em;
+                color: var(--text-on-wood-dim);
+                transition: opacity 0.6s;
+            }
+            body[data-ready] .loading {
+                opacity: 0;
+                pointer-events: none;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas
+            id="scene"
+            aria-label="海图桌：第三轮，领航抉择。你坐在桌前，船员的封蜡围着海图。"
+        ></canvas>
+        <div class="depth"></div>
+        <div class="veil"></div>
+        <div id="slips"></div>
+        <header class="topbar">
+            <span class="wordmark"><i>✦</i>FEED THE KRAKEN</span>
+            <span class="room-chip"
+                ><small>ROOM</small><b>b--foZwsc</b>9 人在船 · 已连接</span
+            >
+            <nav class="topbar-actions">
+                <button class="ghost-btn">船员手册</button>
+                <button class="ghost-btn">返回港口</button>
+            </nav>
+        </header>
+        <section class="move" aria-label="你的行动">
+            <span class="eyebrow">YOUR MOVE · 轮到你了</span>
+            <h2>领航抉择</h2>
+            <p>桌前两张牌：选 1 张执行，另一张弃入深海；也可以跳船抗命。</p>
+            <div class="actions">
+                <button class="btn-brass brass">
+                    执行这条航线 <span aria-hidden="true">→</span>
+                </button>
+                <button class="btn-quiet">跳船抗命…</button>
+            </div>
+        </section>
+        <button class="btn-quiet deep-toggle" id="deep" aria-pressed="false">
+            深渊语气：克拉肯靠近时
+        </button>
+        <div class="loading">正在把海图铺上桌……</div>
+        <script type="module" src="./table-3d.js"></script>
+    </body>
+</html>

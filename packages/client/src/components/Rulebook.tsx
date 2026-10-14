@@ -15,7 +15,7 @@ export function Rulebook({ onClose }: { onClose(): void }) {
     return (
         <dialog
             ref={dialog}
-            className="rulebook"
+            className="drawer rulebook"
             onCancel={onClose}
             aria-labelledby="rules-title"
         >
