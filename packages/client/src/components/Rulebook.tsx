@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { X } from "@phosphor-icons/react";
+import { Guide } from "./Guide";
 
 export function Rulebook({ onClose }: { onClose(): void }) {
     const dialog = useRef<HTMLDialogElement>(null);
@@ -15,7 +16,7 @@ export function Rulebook({ onClose }: { onClose(): void }) {
     return (
         <dialog
             ref={dialog}
-            className="rulebook"
+            className="drawer rulebook"
             onCancel={onClose}
             onClick={(event) => {
                 if (event.target === event.currentTarget) onClose();
@@ -81,6 +82,7 @@ export function Rulebook({ onClose }: { onClose(): void }) {
                 </p>
                 <p>请自行开启语音。离船者保持沉默，不揭示身份与弃牌，仍参与阵营胜负。</p>
             </section>
+            <Guide />
             <aside className="rule-note">
                 <strong>当前版本：默认六边形航线</strong>
                 <p>

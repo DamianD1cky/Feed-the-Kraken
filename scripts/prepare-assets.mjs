@@ -16,34 +16,46 @@ const cacheDir = path.join(root, ".cache/fonts");
 const FONT_URL = "https://github.com/notofonts/noto-cjk/raw/main/Serif/SubsetOTF/SC/NotoSerifSC-SemiBold.otf";
 const FONT_LICENSE_URL = "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Serif/LICENSE";
 
+// [source, name, width, crop?]. The card faces and ritual cards are painted onto the 3D table's
+// card textures, so they keep 480 px. Transparent item and identity art carries wide margins:
+// `crop` ([left, top, width, height] in source pixels) trims it to the drawn subject first.
 const images = [
     ["harbor_with_cthulhu_16-9.png", "harbor", 1920],
     ["harbor_with_cthulhu_16-9.png", "harbor-960", 960],
     ["harbor_with_people_16_9.png", "harbor-warm", 1280],
     ["harbor_with_people_16_9.png", "harbor-warm-800", 800],
-    ["cult_cards/cult_card_back.png", "secret", 280],
-    ["cult_cards/cult_card_face_infect.png", "ritual", 360],
-    ["items_cards/items_capital.png", "captain", 160],
-    ["items_cards/items_chief_officer.png", "mate", 160],
-    ["items_cards/items_handgun.png", "gun", 160],
-    ["items_cards/items_rest.png", "rest", 128],
-    ["items_cards/items_detect.png", "detect", 128],
-    ["items_cards/items_lash.png", "lash", 128],
-    ["items_cards/items_knife.png", "knife", 128],
-    ["navigation_cards/navigation_card_back.png", "card-back", 360],
-    ["navigation_cards/navigation_card_face_location_east.png", "card-east", 360],
-    ["navigation_cards/navigation_card_face_location_west.png", "card-west", 360],
-    ["navigation_cards/navigation_card_face_location_north.png", "card-north", 360],
-    ["id_cards/id_card_good.png", "id-sailor", 320],
-    ["id_cards/id_card_bad.png", "id-pirate", 320],
-    ["id_cards/id_card_cult.png", "id-cult", 320],
+    ["cult_cards/cult_card_back.png", "secret", 480],
+    ["cult_cards/cult_card_face_infect.png", "ritual", 480],
+    ["cult_cards/cult_card_face_guns.png", "ritual-guns", 480],
+    ["cult_cards/cult_card_face_detect.png", "ritual-detect", 480],
+    ["items_cards/items_capital.png", "captain", 160, [128, 154, 999, 997]],
+    ["items_cards/items_chief_officer.png", "mate", 160, [173, 112, 894, 977]],
+    ["items_cards/items_handgun.png", "gun", 160, [138, 235, 1269, 712]],
+    ["items_cards/items_rest.png", "rest", 128, [256, 254, 738, 642]],
+    ["items_cards/items_detect.png", "detect", 128, [216, 104, 749, 1084]],
+    ["items_cards/items_lash.png", "lash", 128, [121, 78, 1043, 1105]],
+    ["items_cards/items_knife.png", "knife", 128, [27, 8, 1022, 1045]],
+    ["navigation_cards/navigation_card_back.png", "card-back", 480],
+    ["navigation_cards/navigation_card_face_location_east.png", "card-east", 480],
+    ["navigation_cards/navigation_card_face_location_west.png", "card-west", 480],
+    ["navigation_cards/navigation_card_face_location_north.png", "card-north", 480],
+    ["navigation_cards/navigation_card_back_element_ship.png", "ship", 200, [226, 80, 797, 1093]],
+    ["navigation_cards/navigation_card_face_element_compass.png", "compass", 120, [185, 46, 882, 1087]],
+    ["id_cards/id_card_good.png", "id-sailor", 320, [1, 1, 649, 922]],
+    ["id_cards/id_card_bad.png", "id-pirate", 320, [11, 12, 661, 755]],
+    ["id_cards/id_card_cult.png", "id-cult", 360, [267, 25, 936, 866]],
 ];
 
 async function buildImages() {
     await mkdir(artOut, { recursive: true });
-    for (const [source, name, width] of images) {
+    for (const [source, name, width, crop] of images) {
         const output = path.join(artOut, `${name}.webp`);
-        const info = await sharp(path.join(pictures, source))
+        let image = sharp(path.join(pictures, source));
+        if (crop) {
+            const [left, top, cropWidth, height] = crop;
+            image = image.extract({ left, top, width: cropWidth, height });
+        }
+        const info = await image
             .resize({ width, withoutEnlargement: true })
             .webp({ quality: 82, effort: 6 })
             .toFile(output);

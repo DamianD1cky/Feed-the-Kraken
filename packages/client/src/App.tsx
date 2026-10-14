@@ -1,52 +1,72 @@
-import { useState } from "react";
-import { Anchor, BookOpenText, GithubLogo, SignOut, X } from "@phosphor-icons/react";
-import { useAppStore } from "./store";
-import { leaveGameRoom } from "./connection";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { GithubLogo, X } from "@phosphor-icons/react";
+import { useAppStore, useStage } from "./store";
 import { Lobby } from "./scenes/Lobby";
-import { RoomView } from "./scenes/RoomView";
 import { Rulebook } from "./components/Rulebook";
+import { LogDrawer, TopBar, World } from "./components/Chrome";
 import "./styles.css";
 
+// The table brings three.js and the models; the harbour should not wait for them.
+const loadTable = () => import("./scenes/Table");
+const Table = lazy(() => loadTable().then((m) => ({ default: m.Table })));
+
 export function App() {
-  const { view, error, setError } = useAppStore();
-  const [rulesOpen, setRulesOpen] = useState(false);
-  return (
-    <main className={view ? "app-shell at-sea" : "app-shell at-harbor"}>
-      <nav className="topbar" aria-label="主导航">
-        <span className="wordmark">
-          <Anchor size={22} weight="light" aria-hidden="true" />
-          <span>险恶疑航</span>
-          <small>Feed the Kraken</small>
-        </span>
-        <div className="topbar-actions">
-          <button className="quiet" onClick={() => setRulesOpen(true)}>
-            <BookOpenText size={18} aria-hidden="true" />
-            船员手册
-          </button>
-          {view && (
-            <button className="quiet" onClick={leaveGameRoom}>
-              <SignOut size={18} aria-hidden="true" />
-              返回港口
-            </button>
-          )}
-        </div>
-      </nav>
-      {error && (
-        <div className="toast" role="alert" key={error}>
-          <span>{error}</span>
-          <button className="icon-button" onClick={() => setError(undefined)} aria-label="关闭提示">
-            <X size={16} />
-          </button>
-        </div>
-      )}
-      {view ? <RoomView view={view} /> : <Lobby />}
-      <footer className="site-footer">
-        <a href="https://github.com/DamianDicky" target="_blank" rel="noreferrer">
-          <GithubLogo size={15} weight="light" aria-hidden="true" />
-          made by DamianDicky
-        </a>
-      </footer>
-      {rulesOpen && <Rulebook onClose={() => setRulesOpen(false)} />}
-    </main>
-  );
+    const error = useAppStore((s) => s.error);
+    const setError = useAppStore((s) => s.setError);
+    const connected = useAppStore((s) => s.connected);
+    const stage = useStage();
+    const [rulesOpen, setRulesOpen] = useState(false);
+    const [logOpen, setLogOpen] = useState(false);
+    const scene = stage ? "table" : "harbor";
+    useEffect(() => {
+        const id = window.setTimeout(() => void loadTable(), 1200);
+        return () => window.clearTimeout(id);
+    }, []);
+    return (
+        <main className="app-shell" data-scene={scene}>
+            <World scene={scene} />
+            <TopBar
+                view={stage?.view}
+                connected={connected}
+                onRules={() => setRulesOpen(true)}
+                onLog={() => setLogOpen(true)}
+            />
+            {error && (
+                <div className="toast" role="alert" key={error}>
+                    <span>{error}</span>
+                    <button className="icon-button" onClick={() => setError(undefined)} aria-label="关闭提示">
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
+            {stage ? (
+                <Suspense
+                    fallback={
+                        <p className="table-loading" role="status">
+                            正在把海图铺上桌……
+                        </p>
+                    }
+                >
+                    <Table stage={stage} onOpenLog={() => setLogOpen(true)} />
+                </Suspense>
+            ) : (
+                <>
+                    <Lobby openRules={() => setRulesOpen(true)} />
+                    <footer className="site-footer">
+                        <a href="https://github.com/DamianDicky" target="_blank" rel="noreferrer">
+                            <GithubLogo size={15} weight="light" aria-hidden="true" />
+                            made by DamianDicky
+                        </a>
+                    </footer>
+                </>
+            )}
+            {rulesOpen && <Rulebook onClose={() => setRulesOpen(false)} />}
+            {logOpen && stage && (
+                <LogDrawer
+                    view={stage.view}
+                    onClose={() => setLogOpen(false)}
+                />
+            )}
+        </main>
+    );
 }

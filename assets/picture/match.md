@@ -113,12 +113,12 @@
 | `items_capital.png`       | 船舵         | 船长               | `/art/captain.webp` |
 | `items_chief_officer.png` | 锚与月桂徽章 | 大副               | `/art/mate.webp`    |
 | `items_handgun.png`       | 手枪         | 玩家枪数、叛变投入 | `/art/gun.webp`     |
-| `items_detect.png`        | 放大镜       | 船舱搜查行动       | 未接入              |
-| `items_lash.png`          | 鞭子         | 鞭笞行动           | 未接入              |
-| `items_knife.png`         | 匕首         | 割舌行动           | 未接入              |
-| `items_rest.png`          | 啤酒杯       | 下班状态           | 未接入              |
+| `items_detect.png`        | 放大镜       | 船舱搜查行动       | `/art/detect.webp`  |
+| `items_lash.png`          | 鞭子         | 鞭笞行动           | `/art/lash.webp`    |
+| `items_knife.png`         | 匕首         | 割舌行动           | `/art/knife.webp`   |
+| `items_rest.png`          | 啤酒杯       | 下班状态           | `/art/rest.webp`    |
 
-目前缺少独立的领航员徽章美术。`items_capital.png` 中的 `capital` 是历史命名，实际含义是 `captain`；在完成代码引用迁移前不要直接改名。
+目前缺少独立的领航员徽章美术，前端暂用航行牌正面的罗盘图层 `navigation_card_face_element_compass.png`（`/art/compass.webp`）代替。`items_capital.png` 中的 `capital` 是历史命名，实际含义是 `captain`；在完成代码引用迁移前不要直接改名。
 
 ## 6. 非卡片资源
 
@@ -138,25 +138,24 @@
 
 `scripts/prepare-assets.mjs`（`pnpm assets images`）将源图转换为 `packages/client/public/art/` 下的 WebP：
 
-| 前端键                 | 运行时文件                                | 源文件                                       |
-| ---------------------- | ----------------------------------------- | -------------------------------------------- |
-| `art.harbor`           | `/art/harbor.webp`、`harbor-960.webp`     | `harbor_with_cthulhu_16-9.png`               |
-| `art.warmHarbor`       | `/art/harbor-warm.webp`、`harbor-warm-800.webp` | `harbor_with_people_16_9.png`          |
-| `art.secret`           | `/art/secret.webp`                        | `cult_cards/cult_card_back.png`              |
-| `art.captain`          | `/art/captain.webp`                       | `items_cards/items_capital.png`              |
-| `art.mate`             | `/art/mate.webp`                          | `items_cards/items_chief_officer.png`        |
-| `art.gun`              | `/art/gun.webp`                           | `items_cards/items_handgun.png`              |
-| `art.rest` / `detect` / `lash` / `knife` | `/art/{rest,detect,lash,knife}.webp` | `items_cards/items_{rest,detect,lash,knife}.png` |
-| `art.ritual`           | `/art/ritual.webp`                        | `cult_cards/cult_card_face_infect.png`       |
-| `art.cardBack`         | `/art/card-back.webp`                     | `navigation_cards/navigation_card_back.png`  |
-| `cardArt.east/west/north` | `/art/card-{east,west,north}.webp`     | `navigation_cards/navigation_card_face_location_*.png` |
-| `identityArt.sailor/pirate/cult` | `/art/id-{sailor,pirate,cult}.webp` | `id_cards/id_card_{good,bad,cult}.png` |
-| `modelArt.ship`        | `/art/model-ship.webp`                    | `models/item_ship_fanon`（`pnpm render-models` 渲染） |
-| `modelArt.tentacleFeed` | `/art/model-tentacle-feed.webp`          | `models/kraken_tentacle_three`，献祭格  |
-| `modelArt.tentacleGoal` | `/art/model-tentacle-goal.webp`          | `models/kraken_tentacle_five`，克拉肯终点 |
-| `modelArt.magnifier`   | `/art/model-magnifier.webp`               | `models/item_detect`，搜查格            |
+| 前端键                                   | 运行时文件                                      | 源文件                                                      |
+| ---------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------- |
+| `art.harbor`                             | `/art/harbor.webp`、`harbor-960.webp`           | `harbor_with_cthulhu_16-9.png`                              |
+| `art.warmHarbor`                         | `/art/harbor-warm.webp`、`harbor-warm-800.webp` | `harbor_with_people_16_9.png`                               |
+| `art.secret`                             | `/art/secret.webp`                              | `cult_cards/cult_card_back.png`                             |
+| `art.navBack`                            | `/art/card-back.webp`                           | `navigation_cards/navigation_card_back.png`                 |
+| `navFaceArt.east` / `west` / `north`     | `/art/card-{east,west,north}.webp`              | `navigation_cards/navigation_card_face_location_*.png`      |
+| `art.compass`                            | `/art/compass.webp`                             | `navigation_cards/navigation_card_face_element_compass.png` |
+| `art.captain` / `mate` / `gun`           | `/art/{captain,mate,gun}.webp`                  | `items_cards/items_{capital,chief_officer,handgun}.png`     |
+| `art.detect` / `lash` / `knife` / `rest` | `/art/{detect,lash,knife,rest}.webp`            | `items_cards/items_{detect,lash,knife,rest}.png`            |
+| `factionArt.sailor` / `pirate` / `cult`  | `/art/id-{sailor,pirate,cult}.webp`             | `id_cards/id_card_{good,bad,cult}.png`                      |
+| `art.ritual`、`ritualArt.*`              | `/art/ritual{,-guns,-detect}.webp`              | `cult_cards/cult_card_face_{infect,guns,detect}.png`        |
 
-物品图标目前用于航海指南与船员名册；领航员暂无独立美术，界面使用罗盘图标代替。
+透明主体（罗盘、物品与身份徽记）在 `prepare-assets.mjs` 中先按绘制范围裁切再缩放，避免大片留白让图标显得过小。航行牌、仪式牌与秘密背面保留 480 px，因为 3D 牌桌会把它们画进卡牌贴图。
+
+另有两类文件目前不在界面里使用：`/art/ship.webp`（船的主体，设计稿 `design/chart-table.html` 引用）和 `/art/model-*.webp`（`pnpm render-models` 由 `assets/models/` 的 GLB 渲染的海图标记，3D 牌桌改为直接加载 `public/models/` 的模型）。
+
+物品图标用于名签、行动面板与船员手册的「航海指南」速查；领航员暂无独立美术，界面使用罗盘图标代替。
 
 ## 8. 新增卡片时的检查清单
 

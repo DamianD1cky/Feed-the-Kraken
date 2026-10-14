@@ -304,7 +304,7 @@ function getPrivatePrompt(state: GameState, viewerId: PlayerId): PrivatePrompt |
 }
 
 function toPublicLogEntry(event: GameEvent, state: GameState): PublicLogEntry {
-  return { seq: event.seq, at: event.at, message: publicMessage(event, state) };
+  return { seq: event.seq, kind: event.type, at: event.at, message: publicMessage(event, state) };
 }
 
 /** 公开日志只暴露公开信息：昵称、职位、坐标与公开结果；阵营、枪数、牌面与秘密目标始终隐藏。 */

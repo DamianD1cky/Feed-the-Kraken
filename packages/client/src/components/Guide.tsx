@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Compass, HandFist, Scroll, WifiSlash } from "@phosphor-icons/react";
-import { art, cardArt, identityArt } from "../labels";
+import { art, factionArt, navFaceArt } from "../labels";
 
 type Entry = { name: string; text: string; icon: ReactNode };
 type Group = { title: string; entries: Entry[] };
@@ -55,9 +55,9 @@ const groups: Group[] = [
     {
         title: "航行牌",
         entries: [
-            { name: "东方 · 蓝", icon: picture(cardArt.east), text: "向水手终点前进。牌效：醉酒、缴械。" },
-            { name: "西方 · 红", icon: picture(cardArt.west), text: "向海盗终点前进。牌效：醉酒、美人鱼、望远镜、武装。" },
-            { name: "北方 · 黄", icon: picture(cardArt.north), text: "向克拉肯前进。牌效：邪教起义。" },
+            { name: "东方 · 蓝", icon: picture(navFaceArt.east), text: "向水手终点前进。牌效：醉酒、缴械。" },
+            { name: "西方 · 红", icon: picture(navFaceArt.west), text: "向海盗终点前进。牌效：醉酒、美人鱼、望远镜、武装。" },
+            { name: "北方 · 黄", icon: picture(navFaceArt.north), text: "向克拉肯前进。牌效：邪教起义。" },
         ],
     },
     {
@@ -73,19 +73,18 @@ const groups: Group[] = [
     {
         title: "阵营",
         entries: [
-            { name: "水手", icon: picture(identityArt.sailor), text: "把船开到东方终点。" },
-            { name: "海盗", icon: picture(identityArt.pirate), text: "把船开到西方终点，开局海盗互相认识。" },
-            { name: "邪教", icon: picture(identityArt.cult), text: "抵达克拉肯，或让领袖被献祭；可以皈依其他船员。" },
+            { name: "水手", icon: picture(factionArt.sailor), text: "把船开到东方终点。" },
+            { name: "海盗", icon: picture(factionArt.pirate), text: "把船开到西方终点，开局海盗互相认识。" },
+            { name: "邪教", icon: picture(factionArt.cult), text: "抵达克拉肯，或让领袖被献祭；可以皈依其他船员。" },
         ],
     },
 ];
 
-export function GuideRail() {
+/** The quick reference at the end of the rulebook: every office, item, order, card and side, with its picture. */
+export function Guide() {
     return (
-        <aside className="side-rail guide-rail" aria-labelledby="guide-title">
-            <div className="rail-heading">
-                <h2 id="guide-title">航海指南</h2>
-            </div>
+        <section className="guide" aria-labelledby="guide-title">
+            <h3 id="guide-title">航海指南 · 速查</h3>
             {groups.map((group) => (
                 <details key={group.title} className="guide-group">
                     <summary>{group.title}</summary>
@@ -104,6 +103,6 @@ export function GuideRail() {
                     </dl>
                 </details>
             ))}
-        </aside>
+        </section>
     );
 }

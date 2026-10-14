@@ -1,0 +1,502 @@
+/* Headings only: a subset of Noto Serif SC built by `pnpm assets fonts` from the strings in the source. */
+@font-face {
+    font-family: "Noto Serif SC Display";
+    src: url("/fonts/noto-serif-sc-display.woff2") format("woff2");
+    font-weight: 600;
+    font-display: swap;
+}
+:root {
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+    color: var(--ink);
+    background: var(--ground);
+    font-synthesis: none;
+    color-scheme: dark;
+    --serif: "Songti SC", "Noto Serif CJK SC", "STSong", Georgia, serif;
+    /* Songti where macOS has it; everywhere else the bundled face rather than a system fallback. */
+    --display: "Songti SC", "Noto Serif SC Display", "Noto Serif CJK SC", "STSong", Georgia, serif;
+    --ground: #0b171b;
+    --panel: rgba(11, 25, 30, 0.8);
+    --panel-raised: rgba(22, 43, 48, 0.92);
+    --ink: #ece6d6;
+    --ink-soft: #c9cfc4;
+    --muted: #93a59e;
+    --gold: #d3b477;
+    --gold-bright: #ead099;
+    --line: rgba(210, 195, 151, 0.15);
+    --line-strong: rgba(211, 180, 119, 0.42);
+    --pirate: #b4553a;
+    --sailor: #4f8db3;
+    --kraken: #cfa13a;
+    --danger: #c0644e;
+    /* Fallbacks; motion/tokens.ts replaces these with springs sampled as linear() where supported. */
+    --ease-land: cubic-bezier(0.22, 1.25, 0.36, 1);
+    --dur-land: 0.5s;
+    --ease-pop: cubic-bezier(0.3, 1.6, 0.4, 1);
+    --dur-pop: 0.42s;
+    --ease-firm: cubic-bezier(0.2, 0.9, 0.3, 1);
+    --dur-firm: 0.45s;
+    --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-glide: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-whip: cubic-bezier(0.87, 0, 0.13, 1);
+}
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    min-width: 320px;
+}
+button,
+input,
+select {
+    font: inherit;
+}
+button {
+    min-height: 44px;
+    padding: 11px 16px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #203438;
+    color: var(--ink);
+    cursor: pointer;
+    transition:
+        background 0.2s,
+        border-color 0.2s,
+        transform var(--dur-pop) var(--ease-pop);
+}
+button:hover:not(:disabled) {
+    background: #30474a;
+    border-color: var(--gold);
+}
+button:active:not(:disabled) {
+    transform: scale(0.97);
+}
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+}
+button.primary {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #172326;
+    font-weight: 700;
+}
+button.primary:hover:not(:disabled) {
+    background: var(--gold-bright);
+}
+button.quiet,
+button.text-button {
+    background: transparent;
+    border-color: transparent;
+    color: #d4cdbb;
+}
+button.quiet:hover:not(:disabled) {
+    background: rgba(211, 180, 119, 0.1);
+    border-color: transparent;
+}
+button.text-button {
+    padding-left: 0;
+    color: var(--gold);
+    text-align: left;
+}
+.icon-button {
+    width: 36px;
+    min-height: 36px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    border-color: transparent;
+    background: transparent;
+    color: #d4cdbb;
+}
+.icon-button:hover:not(:disabled) {
+    background: rgba(211, 180, 119, 0.1);
+    border-color: transparent;
+    color: var(--ink);
+}
+button.test-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 12px;
+    border: 1px dashed var(--line-strong);
+    font-size: 13px;
+}
+button.test-button:hover:not(:disabled) {
+    border-color: var(--gold);
+    border-style: dashed;
+}
+.copy-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.copy-icon {
+    display: inline-grid;
+    width: 16px;
+    height: 16px;
+}
+.copy-icon svg {
+    grid-area: 1 / 1;
+    transition:
+        opacity 0.2s,
+        transform 0.3s var(--ease-pop);
+}
+.copy-icon svg:last-child,
+.is-copied .copy-icon svg:first-child {
+    opacity: 0;
+    transform: scale(0.6);
+}
+.is-copied .copy-icon svg:last-child {
+    opacity: 1;
+    transform: scale(1);
+    color: #8dac98;
+}
+input,
+select {
+    width: 100%;
+    min-height: 46px;
+    padding: 11px 13px;
+    background: #0a191cd9;
+    color: #f0eadf;
+    border: 1px solid #71807b80;
+    border-radius: 6px;
+}
+input::placeholder {
+    color: #a0aaa5;
+}
+label {
+    display: grid;
+    gap: 9px;
+    color: #c3c9c0;
+    font-size: 13px;
+}
+fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+h1,
+h2,
+h3,
+p {
+    margin-top: 0;
+}
+h1,
+h2,
+h3 {
+    font-family: var(--display);
+    font-weight: 600;
+}
+p {
+    line-height: 1.8;
+}
+.eyebrow {
+    margin: 0;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+}
+.muted {
+    color: var(--muted);
+    font-size: 13px;
+}
+.stack {
+    display: grid;
+    gap: 14px;
+}
+.stack p {
+    margin: 0;
+}
+.button-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* The harbour never leaves: in the lobby it is the scene, at sea it is the ground under the table. */
+.app-shell {
+    position: relative;
+    isolation: isolate;
+    min-height: 100dvh;
+}
+.world {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    background: var(--ground);
+}
+.world-art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 62% center;
+    transform-origin: 66% 54%;
+    transition:
+        transform 1.8s var(--ease-whip),
+        filter 1.5s var(--ease-glide);
+}
+.world-shade,
+.world-veil {
+    position: absolute;
+    inset: 0;
+    transition: opacity 1.3s var(--ease-glide);
+}
+.world-shade {
+    background:
+        linear-gradient(90deg, #061619f5 0%, #08171cd9 23%, #07151850 58%, #05101712),
+        linear-gradient(0deg, #071619 0%, transparent 35%, #07161970);
+}
+.world-veil {
+    opacity: 0;
+    background: radial-gradient(ellipse at 50% 45%, rgba(10, 24, 28, 0.5), rgba(5, 12, 15, 0.94) 75%);
+}
+.world[data-scene="table"] .world-art {
+    transform: scale(1.6);
+    filter: saturate(0.55) brightness(0.55) blur(2px);
+}
+.world[data-scene="table"] .world-shade {
+    opacity: 0;
+}
+.world[data-scene="table"] .world-veil {
+    opacity: 1;
+}
+
+.topbar {
+    position: relative;
+    z-index: 3;
+    height: 84px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 0 5%;
+    border-bottom: 1px solid var(--line);
+}
+.app-shell[data-scene="harbor"] .topbar {
+    position: absolute;
+    inset: 0 0 auto;
+}
+.app-shell[data-scene="table"] .topbar {
+    height: 56px;
+    padding: 0 18px;
+    background: rgba(7, 17, 20, 0.7);
+    backdrop-filter: blur(8px);
+    animation: settle-down var(--dur-firm) var(--ease-firm) 0.2s backwards;
+}
+.wordmark {
+    letter-spacing: 0.15em;
+    font-family: Georgia, serif;
+    font-size: 13px;
+    white-space: nowrap;
+}
+.wordmark-star {
+    font-size: 26px;
+    color: var(--gold);
+    margin-right: 12px;
+    vertical-align: middle;
+}
+.app-shell[data-scene="table"] .wordmark-star {
+    font-size: 20px;
+}
+.topbar-room {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+.topbar-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+}
+.app-shell[data-scene="table"] .topbar-actions button {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+.connection {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+.connection::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #b77560;
+    margin-right: 7px;
+    vertical-align: middle;
+}
+.connection.live::before {
+    background: #8dac98;
+}
+.room-code {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    min-height: 32px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(6, 15, 18, 0.5);
+    color: var(--ink);
+}
+.room-code-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+}
+.room-code-id {
+    font-family: Georgia, serif;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+}
+.room-code-state {
+    font-size: 11px;
+    color: var(--muted);
+}
+.room-code-state[data-copied] {
+    color: #8dac98;
+}
+.room-code.is-large {
+    min-height: 44px;
+    padding: 8px 16px;
+    margin-top: 6px;
+}
+.room-code.is-large .room-code-id {
+    font-size: 20px;
+}
+
+.toast {
+    position: fixed;
+    z-index: 60;
+    top: 68px;
+    left: 50%;
+    translate: -50% 0;
+    width: min(560px, calc(100% - 32px));
+    padding: 10px 10px 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #532f2b;
+    border: 1px solid #ba8475;
+    border-radius: 8px;
+    color: #ffebe2;
+    font-size: 14px;
+    box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.7);
+    animation: drop-in var(--dur-land) var(--ease-land) backwards;
+}
+.toast button {
+    min-height: 32px;
+    padding: 4px 10px;
+}
+.toast .icon-button {
+    width: 32px;
+    padding: 0;
+}
+
+/* Carriers between two places on screen; see motion/flight.ts. */
+.flight-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+}
+.flight {
+    position: absolute;
+    left: 0;
+    top: 0;
+    will-change: transform;
+}
+img.ghost {
+    object-fit: contain;
+    filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.55));
+}
+.is-carried {
+    visibility: hidden;
+}
+
+/* RollingText: old words leave upward, new ones rise from behind a clip. */
+.roll {
+    display: inline-block;
+    max-width: 100%;
+}
+.roll-stage {
+    display: inline-grid;
+    max-width: 100%;
+}
+.roll-layer {
+    grid-area: 1 / 1;
+}
+.roll-word {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    padding-block: 0.08em;
+    margin-block: -0.08em;
+}
+.roll-word > span {
+    display: inline-block;
+    transition: transform var(--dur-land) var(--ease-land);
+}
+.roll-layer.is-entering .roll-word > span {
+    transform: translateY(112%);
+    transition: none;
+}
+.roll-layer.is-leaving .roll-word > span {
+    transform: translateY(-112%);
+    transition: transform 0.42s var(--ease-snap);
+}
+
+@keyframes settle-down {
+    from {
+        transform: translateY(-100%);
+    }
+}
+@keyframes drop-in {
+    from {
+        opacity: 0;
+        transform: translateY(-14px) scale(0.97);
+    }
+}
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+}
+@keyframes pop-in {
+    from {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+}

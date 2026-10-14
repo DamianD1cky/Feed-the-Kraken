@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>3D 模型样张</title>
+        <style>
+            body {
+                margin: 0;
+                background: #15100b;
+                color: #ecdcb9;
+                font-family: "Songti SC", serif;
+                overflow: hidden;
+            }
+            canvas {
+                display: block;
+            }
+            .label {
+                position: absolute;
+                transform: translate(-50%, 0);
+                font-size: 13px;
+                letter-spacing: 0.1em;
+                text-align: center;
+                pointer-events: none;
+            }
+            .label small {
+                display: block;
+                font-family: Menlo, monospace;
+                font-size: 10px;
+                color: #a8977a;
+            }
+        </style>
+    </head>
+    <body>
+        <script type="module">
+            import * as THREE from "three";
+            import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+            import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+            import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+            const only = new URLSearchParams(location.search)
+                .get("only")
+                ?.split(",");
+            const models = only?.map((file) => [file, file]) ?? [
+                ["ship-sails", "船开帆"],
+                ["ship-furled", "船未开帆"],
+                ["candle", "蜡烛"],
+                ["tentacle", "触手"],
+                ["tentacle-small", "触手少"],
+                ["helm", "方向盘"],
+                ["mate-badge", "大副徽章"],
+                ["magnifier", "放大镜"],
+                ["pistol", "手枪"],
+                ["knife", "刀"],
+                ["off-duty", "歇班"],
+            ];
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+            renderer.setSize(innerWidth, innerHeight);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            document.body.append(renderer.domElement);
+            const scene = new THREE.Scene();
+            scene.environment = new THREE.PMREMGenerator(renderer).fromScene(
+                new RoomEnvironment(),
+                0.04,
+            ).texture;
+            scene.environmentIntensity = 0.6;
+            scene.add(new THREE.HemisphereLight(0xffe9c8, 0x221810, 0.8));
+            const key = new THREE.DirectionalLight(0xffe2b8, 2.2);
+            key.position.set(3, 6, 5);
+            scene.add(key);
+            const camera = new THREE.PerspectiveCamera(
+                30,
+                innerWidth / innerHeight,
+                0.1,
+                100,
+            );
+            const cols = Math.min(models.length, 4);
+            const rows = Math.ceil(models.length / cols);
+            const spacing = 2.6;
+            // A short list is a close comparison: one row, framed tight.
+            const lift = rows === 1 ? spacing : 0;
+            camera.position.set(
+                0,
+                4.2 * (rows / 3) + lift,
+                (15.5 * Math.max(rows, cols * 0.75)) / 3,
+            );
+            camera.lookAt(0, lift, 0);
+            const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+            const labels = [];
+            await Promise.all(
+                models.map(async ([file, name], i) => {
+                    const gltf = await loader.loadAsync(`/models/${file}.glb`);
+                    const root = gltf.scene;
+                    const box = new THREE.Box3().setFromObject(root);
+                    const size = box.getSize(new THREE.Vector3());
+                    const scale = 1.8 / Math.max(size.x, size.y, size.z);
+                    root.scale.setScalar(scale);
+                    const center = box
+                        .getCenter(new THREE.Vector3())
+                        .multiplyScalar(scale);
+                    const col = i % cols;
+                    const row = Math.floor(i / cols);
+                    const x = (col - (cols - 1) / 2) * spacing;
+                    const y = (1 - row) * spacing;
+                    root.position.set(x - center.x, y - center.y, -center.z);
+                    const tris = (() => {
+                        let n = 0;
+                        root.traverse((o) => {
+                            if (o.isMesh)
+                                n +=
+                                    (o.geometry.index
+                                        ? o.geometry.index.count
+                                        : o.geometry.attributes.position
+                                              .count) / 3;
+                        });
+                        return n;
+                    })();
+                    scene.add(root);
+                    const el = document.createElement("div");
+                    el.className = "label";
+                    el.innerHTML = `${name}<small>${file} · ${Math.round(tris / 1000)}k tris · ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)}</small>`;
+                    document.body.append(el);
+                    labels.push({
+                        el,
+                        at: new THREE.Vector3(x, y - 1.15, 0),
+                        root,
+                    });
+                }),
+            );
+            const tick = (t) => {
+                for (const { el, at, root } of labels) {
+                    root.rotation.y = t * 0.0004;
+                    const p = at.clone().project(camera);
+                    el.style.left = `${((p.x + 1) / 2) * innerWidth}px`;
+                    el.style.top = `${((1 - p.y) / 2) * innerHeight}px`;
+                }
+                renderer.render(scene, camera);
+                requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+            window.__ready = true;
+        </script>
+    </body>
+</html>

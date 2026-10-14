@@ -156,6 +156,8 @@ export type VisiblePlayer = {
 
 export type PublicLogEntry = {
   seq: number;
+  /** 事件类型名，供客户端编排动画与字幕；不附带事件载荷。 */
+  kind: GameEvent["type"];
   message: string;
   at: number;
 };

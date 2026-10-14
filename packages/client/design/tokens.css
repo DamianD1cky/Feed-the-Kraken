@@ -1,0 +1,115 @@
+/* 海图桌 · design tokens and materials. Prototype only; the app adopts these once the direction is confirmed. */
+:root {
+    color-scheme: dark;
+
+    --wood-950: #140d08;
+    --wood-900: #1b120c;
+    --wood-800: #25180f;
+    --wood-700: #332215;
+    --brass-100: #f6e7b8;
+    --brass-200: #ecd493;
+    --brass-300: #dcbd6e;
+    --brass-400: #c6a04a;
+    --brass-500: #a6822f;
+    --brass-700: #6c5120;
+    --parchment-50: #f3e7cb;
+    --parchment-100: #ead9b4;
+    --parchment-200: #dfc99c;
+    --parchment-300: #cfb47f;
+    --parchment-500: #a2865a;
+    --ink-900: #20170e;
+    --ink-700: #3a2b1b;
+    --ink-500: #5d4931;
+    --ink-300: #8a7357;
+    --vermilion: #ad3528;
+    --wax-800: #5b1311;
+    --wax-600: #85211c;
+    --wax-400: #b2392f;
+    --wax-200: #d8695a;
+    --sea-pirate: #a1412d;
+    --sea-sailor: #3c6d91;
+    --sea-kraken: #b58628;
+    --verdigris: #3d6c60;
+    --lantern: #ffcf8a;
+    --text-on-wood: #ecdcb9;
+    --text-on-wood-dim: #b29f7e;
+
+    --font-print: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "STSong", serif;
+    --font-hand: "Kaiti SC", "STKaiti", "KaiTi", "LXGW WenKai", serif;
+    --font-plaque: "Copperplate", "Copperplate Gothic Light", "Cinzel", serif;
+    --font-latin: "Hoefler Text", "Big Caslon", "EB Garamond", Georgia, serif;
+    --font-numeral: "Didot", "Bodoni 72", "Big Caslon", serif;
+
+    /* Fine grain and fibre, drawn once by the browser; no image files. */
+    --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.07  0 0 0 0 0.03  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
+    --fibre: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='300'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.003 0.11' numOctaves='3' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.06  0 0 0 0 0.025  0 0 0 0 0.005  0 0 0 1.25 -0.42'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>");
+    --figure: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='700' height='260'><filter id='w'><feTurbulence type='turbulence' baseFrequency='0.002 0.045' numOctaves='2' seed='21' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.85  0 0 0 0 0.55  0 0 0 0 0.3  0 0 0 0.5 -0.18'/></filter><rect width='100%25' height='100%25' filter='url(%23w)'/></svg>");
+    --mottle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='m'><feTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='4' seed='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.42  0 0 0 0 0.28  0 0 0 0 0.12  0 0 0 0.45 -0.12'/></filter><rect width='100%25' height='100%25' filter='url(%23m)'/></svg>");
+}
+
+/* The table: dark walnut with long fibres and a lantern off to the upper right. */
+.wood {
+    background-color: var(--wood-800);
+    background-image:
+        radial-gradient(ellipse 55% 60% at 86% 4%, rgba(255, 190, 110, 0.24), transparent 70%),
+        radial-gradient(ellipse 95% 85% at 38% 55%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.5) 100%),
+        repeating-linear-gradient(180deg, transparent 0 223px, rgba(0, 0, 0, 0.5) 223px 225px, rgba(255, 214, 160, 0.06) 225px 226px),
+        var(--figure),
+        var(--fibre),
+        var(--grain),
+        linear-gradient(176deg, #33200f, #22150b 70%);
+    background-size: auto, auto, auto, 1100px 226px, 900px 226px, 220px 220px, auto;
+}
+
+/* Paper that has been handled: mottled, warmer at the edges, never pure white. */
+.parchment {
+    background-color: var(--parchment-100);
+    background-image:
+        radial-gradient(ellipse at 50% 42%, rgba(255, 249, 232, 0.5), transparent 62%),
+        radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(122, 82, 38, 0.38) 100%),
+        var(--mottle),
+        var(--grain);
+    background-size: auto, auto, 400px 400px, 220px 220px;
+    color: var(--ink-900);
+}
+
+/* Polished brass with an engraved highlight; used for plaques, tokens and the primary button. */
+.brass {
+    background: linear-gradient(180deg, var(--brass-200) 0%, var(--brass-400) 38%, var(--brass-500) 64%, var(--brass-300) 100%);
+    color: #2b1d0b;
+    border: 1px solid var(--brass-700);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 246, 214, 0.65),
+        inset 0 -2px 3px rgba(70, 46, 12, 0.45),
+        0 2px 5px rgba(0, 0, 0, 0.55);
+    text-shadow: 0 1px 0 rgba(255, 240, 200, 0.55);
+}
+
+.ink {
+    color: var(--ink-900);
+}
+
+/* A vermilion seal stamp: square-ish, slightly rotated, ink pooled at the edges. */
+.stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 5px 0;
+    border: 1.5px solid currentColor;
+    border-radius: 3px;
+    color: var(--vermilion);
+    font-family: var(--font-print);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    line-height: 1.5;
+    transform: rotate(-3deg);
+    mix-blend-mode: multiply;
+    opacity: 0.92;
+}
+.stamp.is-ink {
+    color: var(--ink-700);
+}
+.stamp.is-verdigris {
+    color: var(--verdigris);
+}

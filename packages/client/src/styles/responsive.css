@@ -1,0 +1,124 @@
+/* Laptops and tablets: the dock narrows and the slips shrink a little. */
+@media (max-width: 1180px) {
+    .dock {
+        right: 14px;
+        bottom: 14px;
+        width: clamp(280px, 32vw, 330px);
+    }
+    .slip-name {
+        font-size: 15px;
+    }
+}
+
+/* Phones: the dock is a sheet over the near edge of the table; the camera looks down from higher up. */
+@media (max-width: 760px) {
+    .app-shell[data-scene="table"] .topbar {
+        height: 52px;
+        padding: 0 10px;
+        gap: 8px;
+    }
+    .app-shell[data-scene="table"] .wordmark-text,
+    .app-shell[data-scene="table"] .connection,
+    .topbar-room .room-code-label,
+    .topbar-room .room-code-state {
+        display: none;
+    }
+    .app-shell[data-scene="table"] .topbar-actions {
+        gap: 0;
+    }
+    .app-shell[data-scene="table"] .topbar-actions button {
+        padding: 6px 7px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    .topbar {
+        height: 68px;
+        padding-inline: 20px;
+    }
+    .wordmark {
+        font-size: 9px;
+        letter-spacing: 0.08em;
+    }
+    .wordmark-star {
+        font-size: 22px;
+        margin-right: 5px;
+    }
+    .dock {
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        width: auto;
+        max-height: 44%;
+    }
+    .action-dock {
+        padding: 14px 16px 16px;
+    }
+    .action-dock h2 {
+        font-size: 18px;
+    }
+    .dock-note {
+        margin-bottom: 10px;
+    }
+    .table-status {
+        top: 6px;
+    }
+    .status-caption {
+        font-size: 14px;
+    }
+    .status-waiting {
+        font-size: 11px;
+    }
+    /* Narrow tables: stamps wrap under the name so a slip never pushes past the screen edge. */
+    .slip-paper {
+        padding: 3px 6px 4px;
+        white-space: normal;
+        width: max-content;
+        max-width: 84px;
+    }
+    .slip-meta {
+        flex-wrap: wrap;
+        row-gap: 2px;
+    }
+    .slip[data-side="right"] .slip-paper {
+        left: calc(var(--seal, 40px) / 2 + 3px);
+    }
+    .slip[data-side="left"] .slip-paper {
+        right: calc(var(--seal, 40px) / 2 + 3px);
+    }
+    .slip-name {
+        font-size: 12px;
+    }
+    .slip-meta {
+        gap: 4px;
+    }
+    .slip-guns {
+        font-size: 11px;
+    }
+    .slip-guns img {
+        width: 13px;
+    }
+    .stamp {
+        font-size: 9px;
+    }
+    .dossier-note {
+        top: 54px;
+        bottom: auto;
+    }
+    .harbor-card-inner {
+        width: min(86vw, 340px);
+        padding: 16px 18px 18px;
+    }
+    .drawer {
+        padding: 26px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
