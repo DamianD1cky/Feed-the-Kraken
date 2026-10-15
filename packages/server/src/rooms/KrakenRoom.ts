@@ -19,10 +19,12 @@ import {
     type Direction,
     type GameEvent,
     type GameState,
+    type ServerMessage,
     type PlayerId,
 } from "@feed/shared";
 import { gameDebugLog } from "../debug.js";
 import { getEventStore, type EventStore } from "../db/eventStore.js";
+import { actionKey as makeActionKey, restoreRoom } from "../db/roomRecovery.js";
 import {
     mapActionAt,
     nextDrunkCaptainId,
@@ -54,6 +56,12 @@ type JoinOptions = {
     reconnectToken?: string;
 };
 
+type RoomCreateOptions = { restoreRoomId?: string };
+type EstablishedSessionMessage = Extract<
+    ServerMessage,
+    { type: "session.established" }
+>;
+
 type ProcessedAction = {
     actionId: string;
     result: "accepted" | "rejected";
@@ -80,18 +88,55 @@ export class KrakenRoom extends Room {
     private readonly persistedActionKeys = new Set<string>();
     private eventStore?: EventStore;
 
-    onCreate() {
+    onCreate(options: RoomCreateOptions = {}) {
+        if (options.restoreRoomId) {
+            if (!/^[A-Za-z0-9_-]+$/.test(options.restoreRoomId))
+                throw new Error("待恢复房间号格式不合法。");
+            // MatchMaker 在 onCreate 返回后才登记 roomId，因此可安全恢复原公开房间号。
+            this.roomId = options.restoreRoomId;
+        }
         // 预留一个换连接槽；业务座位仍限制 11 人，避免满房时重连被匹配器先拒绝。
         this.maxClients = MAX_PLAYERS + 1;
         // 空房即解散：最后一名玩家离开后由 Colyseus 立即释放房间，之后无法再加入。
         this.autoDispose = true;
-        this.game = createLobbyState(this.roomId);
+        const store = (this.eventStore = getEventStore());
+        const restored = options.restoreRoomId
+            ? restoreRoom(store, this.roomId)
+            : undefined;
+        if (options.restoreRoomId && !restored)
+            throw new Error(`找不到房间 ${this.roomId} 的持久化快照。`);
+        if (restored) {
+            this.game = restored.game;
+            this.events = restored.events;
+            this.nextSeq = restored.nextSeq;
+            for (const [playerId, session] of restored.sessions)
+                this.sessions.set(playerId, session);
+            for (const key of restored.acceptedActionKeys) {
+                this.persistedActionKeys.add(key);
+                this.processedActions.set(key, {
+                    actionId: key.slice(key.indexOf(":") + 1),
+                    result: "accepted",
+                });
+            }
+        } else {
+            this.game = createLobbyState(this.roomId);
+            if (!store.registerRoom)
+                throw new Error("当前事件存储不支持房间快照。");
+            const initializeRoom = () =>
+                store.registerRoom!(this.roomId, this.game);
+            if (store.transaction) store.transaction(initializeRoom);
+            else initializeRoom();
+        }
         this.setState(new EmptyRoomState());
         this.onMessage("action", (client, payload) =>
             this.handleAction(client, payload),
         );
         this.onMessage("resync", (client) => this.handleResync(client));
-        this.debug("room.created", { maxClients: this.maxClients });
+        this.debug(restored ? "room.restored" : "room.created", {
+            maxClients: this.maxClients,
+            nextSeq: this.nextSeq,
+            playerCount: this.game.seats.length,
+        });
     }
 
     onJoin(client: Client, options: JoinOptions) {
@@ -109,10 +154,12 @@ export class KrakenRoom extends Room {
                 }
             }
             this.clientToPlayer.set(client.sessionId, reconnectPlayerId);
-            this.appendAndApply({
-                type: "session.reconnected",
-                playerId: reconnectPlayerId,
-            });
+            this.runGameTransaction(() =>
+                this.appendAndApply({
+                    type: "session.reconnected",
+                    playerId: reconnectPlayerId,
+                }),
+            );
             this.debug("player.reconnected", { playerId: reconnectPlayerId });
             // 重连不轮换 token：客户端若漏收 session.established，轮换会导致永久无法再连。
             this.broadcastViews();
@@ -156,9 +203,18 @@ export class KrakenRoom extends Room {
         }
         const playerId = randomUUID();
         this.clientToPlayer.set(client.sessionId, playerId);
-        this.appendAndApply({ type: "player.joined", playerId, nickname });
+        let sessionMessage: EstablishedSessionMessage;
+        try {
+            this.runGameTransaction(() => {
+                this.appendAndApply({ type: "player.joined", playerId, nickname });
+                sessionMessage = this.createSession(playerId);
+            });
+        } catch (error) {
+            this.clientToPlayer.delete(client.sessionId);
+            throw error;
+        }
         this.debug("player.joined", { playerId, nickname });
-        this.issueSession(client, playerId);
+        client.send("session.established", sessionMessage!);
         this.broadcastViews();
     }
 
@@ -185,6 +241,7 @@ export class KrakenRoom extends Room {
         if (!session) return undefined;
         if (isSessionExpired(session)) {
             this.sessions.delete(options.playerId);
+            this.eventStore?.deleteSession?.(this.roomId, options.playerId);
             this.debug("session.expired", {
                 playerId: options.playerId,
                 expiresAt: session.expiresAt,
@@ -216,17 +273,19 @@ export class KrakenRoom extends Room {
         this.broadcastViews();
     }
 
-    private issueSession(client: Client, playerId: PlayerId) {
+    private createSession(playerId: PlayerId): EstablishedSessionMessage {
         const sessionToken = createToken();
         const reconnectToken = createToken();
         const expiresAt = createSessionExpiry();
-        this.sessions.set(playerId, {
+        const session: SessionRecord = {
             playerId,
             sessionTokenHash: hashToken(sessionToken),
             reconnectTokenHash: hashToken(reconnectToken),
             expiresAt,
-        });
-        client.send("session.established", {
+        };
+        this.sessions.set(playerId, session);
+        this.eventStore?.upsertSession?.(this.roomId, session);
+        return {
             type: "session.established",
             protocolVersion: PROTOCOL_VERSION,
             roomId: this.roomId,
@@ -234,7 +293,7 @@ export class KrakenRoom extends Room {
             sessionToken,
             reconnectToken,
             expiresAt,
-        });
+        };
     }
 
     private handleAction(client: Client, payload: unknown) {
@@ -274,7 +333,7 @@ export class KrakenRoom extends Room {
             actorId,
             phase: this.game.phase,
         });
-        const actionKey = `${envelope.playerId}:${envelope.actionId}`;
+        const actionKey = makeActionKey(envelope.playerId, envelope.actionId);
         const previous = this.processedActions.get(actionKey);
         if (previous) {
             if (previous.result === "rejected") {
@@ -1097,8 +1156,9 @@ export class KrakenRoom extends Room {
             seq: this.nextSeq,
             at: Date.now(),
         } as GameEvent;
-        const actionKey =
-            envelope ? `${envelope.playerId}:${envelope.actionId}` : undefined;
+        const actionKey = envelope
+            ? makeActionKey(envelope.playerId, envelope.actionId)
+            : undefined;
         const persistActionKey = Boolean(
             actionKey && !this.persistedActionKeys.has(actionKey),
         );
@@ -1149,14 +1209,22 @@ export class KrakenRoom extends Room {
         const eventCount = this.events.length;
         const seq = this.nextSeq;
         const keys = new Set(this.persistedActionKeys);
+        const sessions = new Map(this.sessions);
+        const processedActions = new Map(this.processedActions);
         const store = (this.eventStore ??= getEventStore());
+        const persist = () => {
+            work();
+            store.saveSnapshot?.(this.roomId, this.nextSeq - 1, this.game);
+        };
         try {
-            if (store.transaction) store.transaction(work);
-            else work(); // In-memory test stores.
+            if (store.transaction) store.transaction(persist);
+            else persist(); // In-memory test stores.
         } catch (error) {
             this.game = before;
             this.events.length = eventCount;
             this.nextSeq = seq;
+            replaceMap(this.sessions, sessions);
+            replaceMap(this.processedActions, processedActions);
             this.persistedActionKeys.clear();
             for (const key of keys) this.persistedActionKeys.add(key);
             throw error;
@@ -1213,6 +1281,11 @@ export class KrakenRoom extends Room {
         if (this.game.hostPlayerId !== playerId)
             throw new Error("只有房主可以开始游戏。");
     }
+}
+
+function replaceMap<K, V>(target: Map<K, V>, source: Map<K, V>) {
+    target.clear();
+    for (const [key, value] of source) target.set(key, value);
 }
 
 function normalizeNickname(nickname: string | undefined) {

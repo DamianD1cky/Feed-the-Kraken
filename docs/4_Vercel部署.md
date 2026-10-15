@@ -32,21 +32,21 @@ RECONNECT_SESSION_TTL_MS=604800000
 FTK_DEBUG=0
 ```
 
-6. 给服务挂载 Volume，Mount Path 设置为 `/data`。没有数据卷时，SQLite / JSONL 会在重新部署后丢失。
+6. 给服务挂载 Volume，Mount Path 设置为 `/data`。没有数据卷时，SQLite 会在重新部署后丢失，快照和事件均无法恢复。
 7. 在 `Settings → Networking → Public Networking` 生成域名，例如：
 
 ```text
 feed-the-kraken-server-production.up.railway.app
 ```
 
-8. 保持 **1 个副本**，不要开启 Serverless / Scale to zero。当前房间和会话在单进程内存中，多副本会把玩家随机分配到不同进程，休眠或重启会直接丢失正在进行的房间。
+8. 保持 **1 个副本**，不要开启多副本。正在运行的房间仍由单个 Colyseus 进程承载；重启后可从 SQLite 恢复，但多个进程不能共同操作同一个本地数据库房间。
 9. 验证：
 
 ```bash
 curl https://feed-the-kraken-server-production.up.railway.app/api/health
 ```
 
-应返回 `"ok": true` 与当前协议版本。再检查部署日志；如果出现 `SQLite unavailable; using JSONL`，说明已经降级到 JSONL，应先解决 `better-sqlite3` 原生模块问题。
+应返回 `"ok": true` 与当前协议版本。SQLite 在监听端口前初始化；如果 native 绑定、数据库路径或 schema 初始化失败，部署应直接失败，而不是退回其他存储模式。
 
 ## 2. 部署前端到 Vercel
 
@@ -96,8 +96,8 @@ VITE_SERVER_URL=wss://game.example.com
 2. 另一台设备能用房间号加入。
 3. 至少 5 个浏览器身份可以开局并完成一次航行。
 4. 刷新页面后可以恢复身份。
-5. Railway 日志无 SQLite 降级、未捕获异常或反复重启。
-6. Railway 重新部署后，确认旧房间会失效，并向实际玩家说明这一限制。
+5. Railway 日志无 SQLite 初始化错误、未捕获异常或反复重启。
+6. 在测试局进入任命或选牌阶段后重新部署 Railway；服务恢复后，用原浏览器和原房间号恢复身份，确认阶段、职位和私密信息保持一致。
 
 本地发布前检查：
 
@@ -109,8 +109,8 @@ pnpm build
 
 ## 5. 当前生产边界
 
-- Railway 重启 / 发布会丢失正在进行的房间与会话；事件文件尚不能自动恢复房间。
-- SQLite 只保存事件，不保存可恢复的房间快照和令牌状态。
+- Railway 重启 / 发布后会从同一 SQLite 数据卷恢复未结束房间、会话哈希和权威状态；玩家仍需用原浏览器凭据重新连接。
+- 已结束房间、会话全部过期、数据卷丢失或数据库损坏时不会恢复。
 - 当前架构只能运行单个服务端副本，不能水平扩容。
 - Vercel Preview 若复用生产后端，会与正式站共享房间空间。
 - 前端源码中的服务端 URL 是构建产物的一部分，不属于秘密。
